@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --hw-bg-0: #050015;
+  --hw-bg-1: #100022;
+  --hw-bg-2: #250044;
+  --hw-gold: #F7D56D;
+  --hw-gold-2: #FFBD54;
+  --hw-purple: #8F46D9;
+  --hw-purple-2: #C063FF;
+  --hw-text: #FFF5D9;
+  --hw-muted: rgba(235,216,255,.72);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  overscroll-behavior: none;
+}
+
+body {
+  margin: 0;
+  background: #050015;
+  color: var(--hw-text);
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent iOS keyboard from shifting layout */
+input, textarea {
+  touch-action: manipulation;
+}
+
+.hwallet-bg {
+  background:
+    radial-gradient(circle at 50% 2%, rgba(255,189,84,.22), transparent 26%),
+    radial-gradient(circle at 85% 18%, rgba(192,99,255,.22), transparent 28%),
+    radial-gradient(circle at 12% 42%, rgba(56,189,248,.14), transparent 26%),
+    linear-gradient(180deg, var(--hw-bg-2), var(--hw-bg-1) 46%, var(--hw-bg-0));
+}
+
+.hwallet-panel {
+  position: relative;
+  border: 1px solid rgba(192,99,255,.42);
+  background:
+    radial-gradient(circle at 75% 0%, rgba(247,213,109,.12), transparent 36%),
+    linear-gradient(180deg, rgba(52,18,88,.86), rgba(14,3,42,.94));
+  box-shadow: 0 0 34px rgba(192,99,255,.22), 0 24px 74px rgba(0,0,0,.55);
+  backdrop-filter: blur(18px);
+}
+
+.hwallet-panel::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 26%;
+  right: 26%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #ffcf72, transparent);
+  filter: blur(.6px);
+}
+
+.gold-text {
+  color: transparent;
+  background: linear-gradient(180deg, #fff4aa 0%, #f7d56d 42%, #c9852b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.gold-button {
+  background: linear-gradient(135deg, #fff0a8 0%, #f7c65f 45%, #c97e22 100%);
+  color: #230035;
+  box-shadow: 0 13px 32px rgba(255,184,74,.30), inset 0 1px 0 rgba(255,255,255,.62);
+}
+
+.neon-line {
+  background: linear-gradient(90deg, transparent, rgba(247,213,109,.85), transparent);
+}
+
+.agent-orbit {
+  animation: floaty 4s ease-in-out infinite;
+}
+
+.agent-orbit:nth-child(2) {
+  animation-delay: .7s;
+}
+
+.agent-orbit:nth-child(3) {
+  animation-delay: 1.2s;
+}
+
+@keyframes floaty {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
