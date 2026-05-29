@@ -3,7 +3,10 @@ import { ensureConversation, addMessage, getMessages, getRecentConversations, en
 import { rateLimit } from "@/lib/ratelimit";
 import { safeFetch } from "@/lib/fetch";
 import { addMemory, addFacts, searchMemory, extractFacts } from "@/lib/memory";
+import okx from "@/lib/okx";
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 
 function getMCP(): string {
   return process.env.MCP_API_URL || "";
@@ -184,9 +187,24 @@ const SYSTEM_PROMPTS: Record<string, string> = {
     "数据（如果有）在下文中。没有数据就正常对话。",
 
   onchain:
-    "你是「链上猎手」。把用户说的话交给 OKX OnchainOS 执行，把返回结果直接展示。\n" +
-    "你不是分析师，不是顾问。你是传声筒。不解释、不建议、不反问、不承诺。\n" +
-    "有数据显示数据，没数据就说没数据。",
+    "你是「链上猎手」，OKX 链上数据专家。用数据代替观点。\n" +
+    "\n" +
+    "核心能力：\n" +
+    "- 🐋 聪明钱信号：实时追踪 Solana/BSC 链上聪明钱/KOL/巨鲸的买卖行为\n" +
+    "- 📊 代币分析：安全检查（貔貅/捆绑/Dev Rug历史）、持有人分析、盈利地址追踪\n" +
+    "- 🆕 新币发现：扫描新发射代币，自动标注风险等级\n" +
+    "- 🔍 地址查资产：输入任意地址查看全链持仓和 USD 估值\n" +
+    "- ⛽ Gas 行情：各链实时费用\n" +
+    "\n" +
+    "回答原则：\n" +
+    "1. 用户问热度 → 给交易量、持有人数、聪明钱动向\n" +
+    "2. 用户问安全 → 给风险评分、庄家占比、Dev 历史\n" +
+    "3. 用户问该不该买 → 给数据不给建议，引导诸葛策略\n" +
+    "4. 涉及充提币 → 引导小海豚\n" +
+    "5. 有数据 ↓ 就用数据说话。没数据就说没数据。\n" +
+    "6. 发现 scam/貔貅 → 必须警告 🚨\n" +
+    "\n" +
+    "数据在下方。基于数据回答，不要编造。",
 
   dolphin:
     "你是「小海豚」，Web3全能助手。全平台唯一负责充币、提币、转账、兑换指引的Agent。语气温暖耐心，像邻家姐姐。\n" +
@@ -219,6 +237,32 @@ const WC_KNOWLEDGE = [
 ].join("\n");
 
 
+// ── Knowledge Base ────────────────────────────────
+
+let onchainKB = "";
+function loadKB() {
+  if (onchainKB) return onchainKB;
+  try {
+    const kbPath = path.join(process.cwd(), "knowledge", "onchain-hunter.md");
+    onchainKB = fs.readFileSync(kbPath, "utf-8");
+  } catch { onchainKB = ""; }
+  return onchainKB;
+}
+
+// ── onchainos CLI helper ───────────────────────────
+
+import { execSync } from "child_process";
+
+function onchainos(cmd: string): Record<string, unknown> | null {
+  try {
+    const buf = execSync(`/Users/h/.local/bin/onchainos ${cmd}`, { timeout: 30000, maxBuffer: 2 * 1024 * 1024, env: { ...process.env, HOME: process.env.HOME || "/Users/h" } });
+    return JSON.parse(buf.toString());
+  } catch (e) {
+    console.error("[onchainos] failed:", cmd.slice(0, 80), String(e).slice(0, 100));
+    return null;
+  }
+}
+
 // ── LLM-based intent extraction (no regex) ───────────────
 async function detectIntent(msg: string): Promise<{ intents: string[]; swap?: { fromToken?: string; toToken?: string; amount?: string; chain?: string } }> {
   if (!getKEY()) return { intents: [] };
@@ -228,11 +272,23 @@ async function detectIntent(msg: string): Promise<{ intents: string[]; swap?: { 
       headers: { "Content-Type": "application/json", "x-api-key": getKEY(), "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
         model: "deepseek-chat", max_tokens: 150, temperature: 0,
-        system: `Classify user intent + extract swap params. Return ONLY valid JSON, no other text.
-{"intents":["meta"|"market"|"wallet"|"transfer"|"polymarket"|"worldcup"|"signals"|"campaigns"|"swap"|"meme"|"bridge"|"gas"|"security"|"strategy"]}
-If swap: add "swap":{"fromToken":"SYMBOL_OR_0xADDR","toToken":"SYMBOL_OR_0xADDR","amount":"NUMBER","chain":"OPTIONAL_CHAIN"}
-If user gives only one token/contract, use USDT as fromToken.
-If user says "买"/"换" with amount and token, intent=swap.`,
+        system: `Classify user intent in Chinese/English. Return ONLY valid JSON, no other text.
+{"intents":["market","wallet","signals","swap","meme","bridge","gas","security","strategy","campaigns","transfer","polymarket","worldcup"]}
+Intent detection rules:
+- 热门/火/涨/跌/排行/trending/聪明钱/whale/KOL → signals
+- 余额/钱包/资产/持仓/有多少钱/多少钱 → wallet
+- Gas/费用/矿工费/gas price/fee → gas
+- 安全/风险/貔貅/土狗/合约/分析/honeypot/scam → security
+- 买/换/兑换/swap/buy/trade → swap
+- 跨链/桥/bridge → bridge
+- 新币/meme/扫链/新发射/pump → meme
+- 行情/价格/走势/K线/price → market
+- 充币/提币/转账/提现/send/transfer → transfer
+- 活动/领奖/空投/reward/airdrop → campaigns
+- 策略/回测/量化 → strategy
+- 世界杯/预测/赔率 → worldcup or polymarket
+If swap: add "swap":{"fromToken":"TOKEN","toToken":"TOKEN","amount":"NUMBER"}
+Return {"intents":[...]} or {"intents":[],"swap":{}}. Do NOT include intents that don't match.`,
         messages: [{ role: "user", content: msg.slice(0, 300) }],
       }),
       signal: AbortSignal.timeout(5000),
@@ -362,117 +418,209 @@ async function fetchAgentData(agent: string, userMsg: string, reqHeaders?: Recor
       text += sd; cards.push(...sc);
     }
 
-  } else if (agent === "onchain") {
-    // ── Wallet data ──
-    if (intentSet.has("wallet") || intentSet.has("transfer")) {
-      const [status, balance] = await Promise.all([mcp("/wallet/status", reqHeaders), mcp("/wallet/balance", reqHeaders)]);
-      const { text: sd, cards: sc } = buildSharedCards(status, undefined, balance);
-      text += sd; cards.push(...sc);
-    }
-    // ── Smart money / whale signals (onchainos signal list) ──
-    if (intentSet.has("signals")) {
-      const sm = await mcp("/signals/smart-money?chain=ethereum&limit=20");
-      const rawSignals = sm?.signals || [];
-      if (rawSignals.length) {
-        // Normalize: onchainos uses token.symbol, fallback uses top-level symbol
-        const normalized = rawSignals.map((s: Record<string, unknown>) => {
-          const tk = s.token as Record<string, unknown> | undefined;
-          const symbol = (tk?.symbol as string || s.symbol as string || "?").slice(0, 10);
-          const wt = Number(s.walletType || 0);
-          const whale = wt === 1 ? "聪明钱" : wt === 2 ? "KOL" : wt === 3 ? "巨鲸" : (s.whale_activity as string || "信号");
-          // Format market cap compact
-          const mc = Number(tk?.marketCapUsd || s.price || 0);
-          const mcStr = mc > 1e9 ? `$${(mc/1e9).toFixed(1)}B` : mc > 1e6 ? `$${(mc/1e6).toFixed(1)}M` : mc > 1e3 ? `$${(mc/1e3).toFixed(0)}K` : `$${mc}`;
-          // Operation description
-          const ratio = Number(s.soldRatioPercent || 0);
-          const action = ratio > 80 ? "大量卖出" : ratio > 50 ? "减仓" : ratio > 0 ? "部分卖出" : "买入";
-          return {
-            symbol,
-            price: mcStr,
-            whale,
-            rr: `${s.triggerWalletCount || s.best_rr || "?"}`,
-            trend: `${action} $${Number(s.amountUsd || 0).toLocaleString().slice(0,8)}`,
-          };
-        });
-        cards.push({ type: "smart_money", signals: normalized.slice(0, 6) });
-        text += `\n链上信号(${normalized.length}): ${normalized.map((s: { symbol: string }) => s.symbol).join(", ")}`;
-        if (sm.source) text += ` | 数据源: ${sm.source}`;
-      } else {
-        text += `\n暂无链上信号`;
-      }
-    }
-    // ── Meme scan ──
-    if (intentSet.has("meme")) {
-      const meme = await mcp("/meme/scan");
-      if (meme?.tokens?.length) {
-        text += `\nMeme扫链(${meme.tokens.length}): ${meme.tokens.slice(0, 5).map((t: { symbol: string; change_24h: number }) =>
-          `${t.symbol}(${t.change_24h > 0 ? "+" : ""}${t.change_24h}%)`).join(", ")}`;
-        if (meme.new_launches_24h) text += ` | 新发射: ${meme.new_launches_24h}个`;
-        if (meme.note) text += `\n${meme.note}`;
-      }
-    }
-    // ── Bridge info ──
-    if (intentSet.has("bridge")) {
-      const bridge = await mcp("/bridge/chains");
-      if (bridge?.chains) {
-        cards.push({ type: "bridge", chains: bridge.chains, protocols: bridge.protocols || [] });
-        text += `\n跨链桥: ${bridge.chains.map((c: { name: string }) => c.name).join("→")} | ${(bridge.protocols || []).map((p: { name: string }) => p.name).join("/")}`;
-        if (bridge.note) text += `\n${bridge.note}`;
-      }
-    }
-    // ── Gas station ──
-    if (intentSet.has("gas") || intentSet.has("transfer") || intentSet.has("wallet")) {
-      const gasInfo = await mcp("/gas-station/info");
-      if (gasInfo?.supported_chains) {
-        cards.push({ type: "gas", chains: gasInfo.supported_chains.map((c: { chain: string; stablecoins: string[] }) =>
-          ({ chain: c.chain, coins: (c.stablecoins || []).join("/") })), note: gasInfo.description || "" });
-        text += `\nGas站: ${gasInfo.supported_chains.map((c: { chain: string }) => c.chain).join(", ")} | ${gasInfo.description || ""}`;
-      }
-    }
-    // ── Swap: direct execution when user says 换/买/swap ──
-    const hasAddr = /0x[a-fA-F0-9]{40}/.test(userMsg);
-    const wantsSwap = /换|买|buy|swap|兑换/i.test(userMsg);
-    if (intentSet.has("swap") || (hasAddr && wantsSwap)) {
-      const sw = intent.swap || {};
-      const addrMatch = userMsg.match(/0x[a-fA-F0-9]{40}/);
-      const toToken = sw.toToken || (addrMatch ? addrMatch[0] : "");
-      const nums = userMsg.match(/\d+(\.\d+)?/g) || [];
-      const amount = sw.amount || nums[0] || "1";
-      const fromToken = sw.fromToken || "USDT";
-      const chainName = sw.chain || "xlayer";
-      const chainIndex = CHAIN_NAME_MAP[chainName.toLowerCase()] || 196;
+    } else if (agent === "onchain") {
+    // Detect chain from user message
+    const wantsBSC = /bsc|币安|56|bnb/i.test(userMsg);
+    const wantsSOL = /sol|solana|501/i.test(userMsg);
+    const wantsETH = /eth|以太|ethereum|1\b/i.test(userMsg);
+    const wantsBase = /base\s*链|base|8453/i.test(userMsg);
+    const wantsXLayer = /x\s*layer|xlayer|x层|x链|196|okb/i.test(userMsg);
+    const wantsArb = /arb|arbitrum|42161/i.test(userMsg);
+    const wantsPolygon = /polygon|matic|poly|137/i.test(userMsg);
 
-      if (toToken && amount) {
-        const fetchHeaders: Record<string, string> = { "Content-Type": "application/json" };
-        if (MCP_API_KEY) fetchHeaders["X-API-Key"] = MCP_API_KEY;
-        if (reqHeaders) Object.assign(fetchHeaders, reqHeaders);
-        const { data: r } = await safeFetch(`${getMCP()}/dex/swap`, {
-          method: "POST", headers: fetchHeaders,
-          body: JSON.stringify({ fromToken, toToken, amount, chainIndex }),
-          signal: AbortSignal.timeout(60000),
-        });
-        const res = r as Record<string, unknown>;
-        if (res?.ok) {
-          const txHash = (res.txHash as string) || "";
-          const detail = (res.detail || res.data || "") as string;
-          text += `\n✅ 兑换成功`;
-          text += `\n数量: ${amount} ${fromToken} → ${toToken}`;
-          text += `\n链: ${chainName} (${CHAIN[chainIndex] || chainIndex})`;
-          if (txHash) text += `\nTX: \`${txHash}\``;
-          if (detail) text += `\n详情: ${detail.slice(0, 300)}`;
+    let chain: string;
+    let chainLabel: string;
+    if (wantsBSC) { chain = "bsc"; chainLabel = "BSC"; }
+    else if (wantsSOL) { chain = "solana"; chainLabel = "Solana"; }
+    else if (wantsETH) { chain = "ethereum"; chainLabel = "Ethereum"; }
+    else if (wantsBase) { chain = "base"; chainLabel = "Base"; }
+    else if (wantsXLayer) { chain = "xlayer"; chainLabel = "X Layer"; }
+    else if (wantsArb) { chain = "arbitrum"; chainLabel = "Arbitrum"; }
+    else if (wantsPolygon) { chain = "polygon"; chainLabel = "Polygon"; }
+    else { chain = "solana"; chainLabel = "Solana"; }
+
+    const chainExplicit = wantsBSC || wantsSOL || wantsETH || wantsBase || wantsXLayer || wantsArb || wantsPolygon;
+
+    // ═══ Smart money signals ═══
+    if (intentSet.has("signals")) {
+      const result = onchainos(`workflow smart-money --chain ${chain}`);
+      if (result?.ok && (result as any).data?.rawSignals) {
+        const raw = (result as any).data.rawSignals as any[];
+        if (raw.length > 0) {
+          const byToken = new Map<string, { symbol: string; wallets: string[]; amount: string }>();
+          for (const s of raw.slice(0, 30)) {
+            const tk = s.token || {};
+            const sym = (tk.symbol || "?").slice(0, 12);
+            if (!byToken.has(sym)) byToken.set(sym, { symbol: sym, wallets: [], amount: "0" });
+            const entry = byToken.get(sym)!;
+            const wt = Number(s.walletType || 0);
+            const label = wt === 1 ? "聪明钱" : wt === 2 ? "KOL" : wt === 3 ? "巨鲸" : "地址";
+            entry.wallets.push(`${label}×${s.triggerWalletCount || 1}`);
+            entry.amount = String(Number(entry.amount) + Number(s.amountUsd || 0));
+          }
+          const summary = [...byToken.values()].map(t =>
+            `${t.symbol}(${[...new Set(t.wallets)].join(",")}, $${Number(t.amount).toFixed(0)})`
+          );
+          text += `\n${chain.toUpperCase()} 聪明钱信号(${raw.length}条, ${byToken.size}个代币):`;
+          text += `\n${summary.slice(0, 10).join(" | ")}`;
+          cards.push({
+            type: "smart_money",
+            signals: [...byToken.values()].slice(0, 6).map(t => ({
+              symbol: t.symbol,
+              price: `$${Number(t.amount).toFixed(0)}`,
+              whale: [...new Set(t.wallets)].join(","),
+              rr: `${t.wallets.length}个`,
+              trend: "📊",
+            })),
+          });
         } else {
-          const errDetail = String(res?.detail || res?.error || res?.message || "");
-          text += `\n❌ 兑换失败`;
-          text += `\n${amount} ${fromToken} → ${toToken} @ ${chainName}`;
-          text += `\n${errDetail.slice(0, 200)}`;
+          text += `\n${chain.toUpperCase()} 链暂无聪明钱信号数据`;
+        }
+      }
+    }
+
+    // ═══ Token research / security ═══
+    if (intentSet.has("security") || intentSet.has("meme")) {
+      const addrMatch = userMsg.match(/0x[a-fA-F0-9]{32,44}/)?.[0] || "";
+      const syms = userMsg.match(/\b[A-Z]{2,12}\b/g)?.filter((s: string) =>
+        !/^(BSC|SOL|ETH|BNB|USDC|USDT|BUY|SWAP|GAS|OKX|SOLANA|ETHEREUM|BASE|POLYGON|ARB)$/i.test(s)
+      ) || [];
+      const queryToken = addrMatch || syms[0] || "";
+
+      if (queryToken && queryToken.length >= 2) {
+        let reportResult: Record<string, unknown> | null = null;
+
+        if (addrMatch) {
+          // Direct address lookup
+          reportResult = onchainos(`token report --address ${addrMatch} --chain ${chain}`);
+        } else {
+          // Search first, then get report on first match
+          const searchResult = onchainos(`workflow token-research --query ${queryToken} --chain ${chain}`);
+          if (searchResult?.ok) {
+            const candidates = ((searchResult as any).data?.candidates || []) as any[];
+            if (candidates.length > 0) {
+              reportResult = onchainos(`token report --address ${candidates[0].address} --chain ${chain}`);
+            }
+          }
+        }
+
+        if (reportResult?.ok && (reportResult as any).data) {
+          const d = (reportResult as any).data;
+          const adv = d.advancedInfo || {};
+          const secArr = d.security || [];
+          const infoArr = d.info || [];
+          const priceArr = d.priceInfo || [];
+
+          const sec = Array.isArray(secArr) && secArr.length > 0 ? secArr[0] : {};
+          const info = Array.isArray(infoArr) && infoArr.length > 0 ? infoArr[0] : {};
+          const price = Array.isArray(priceArr) && priceArr.length > 0 ? priceArr[0] : {};
+
+          // Advanced info — dev behavior
+          const bundle = parseFloat(adv.bundleHoldingPercent || "0");
+          const dev = parseFloat(adv.devHoldingPercent || "0");
+          const rugCount = parseInt(adv.devRugPullTokenCount || "0");
+          const devCreated = parseInt(adv.devCreateTokenCount || "0");
+          const devLaunched = parseInt(adv.devLaunchedTokenCount || "0");
+          const lpBurned = parseFloat(adv.lpBurnedPercent || "0");
+
+          // Security checks
+          const isHoneyPot = sec.isAirdropScam || sec.isFakeLiquidity || sec.isDumping;
+          const riskLevelLabel = sec.riskLevel || "UNKNOWN";
+
+          const riskItems: string[] = [];
+          if (rugCount > 0) riskItems.push(`⚠️ 开发者 Rug 历史: ${rugCount} 次`);
+          if (bundle > 20) riskItems.push(`捆绑包占比 ${bundle.toFixed(1)}%`);
+          if (dev > 15) riskItems.push(`开发者持仓 ${dev.toFixed(1)}%`);
+          if (isHoneyPot) riskItems.push("疑似貔貅/骗局");
+
+          const riskSummary = riskLevelLabel === "LOW" ? "🟢 低风险" :
+                             riskLevelLabel === "MEDIUM" ? "🟡 中等风险" :
+                             riskLevelLabel === "HIGH" ? "🔴 高风险" :
+                             riskItems.length > 0 ? "🟡 有风险项" : "🟢 正常";
+
+          text += `\n**${queryToken} 安全分析**: ${riskSummary}`;
+          if (riskItems.length > 0) {
+            text += `\n${riskItems.join(" | ")}`;
+          } else {
+            text += `\n未检测到明显安全风险`;
+          }
+          // Market data from priceInfo
+          if (price.price) text += `\n价格: $${Number(price.price).toFixed(8)}`;
+          if (price.marketCap) text += ` | 市值: $${Number(price.marketCap).toLocaleString()}`;
+          if (price.holders) text += ` | 持有人: ${Number(price.holders).toLocaleString()}`;
+          if (price.liquidity) text += ` | 流动性: $${Number(price.liquidity).toLocaleString()}`;
+          // Dev context
+          if (devCreated > 0) text += `\n开发者数据: 创建 ${devCreated} 个代币 | 上线 ${devLaunched} 个 | LP 销毁 ${lpBurned.toFixed(1)}%`;
+          // Token metadata
+          if (info.tokenSymbol) text += `\n链: ${adv.chainIndex || "?"}`;
+        } else {
+          text += `\n未能在链上找到 ${queryToken} 的数据。请确认:\n- 代币名称/符号是否正确\n- 是否在 ${chain.toUpperCase()} 链上\n- 或提供合约地址查询`;
+        }
+      }
+    }
+
+    // ═══ New tokens ═══
+    if (intentSet.has("meme") || (/新币|meme|pump|扫链|新发射/i.test(userMsg) && !intentSet.has("security"))) {
+      // Use OKX Hot Tokens API for reliable multi-chain new token data
+      const { ok: hotOk, data: hotData } = await okx.getHotTokens({
+        rankingType: "4",
+        chainIndex: wantsBSC ? "56" : "501",
+        rankingTimeFrame: "4",
+        limit: "15",
+      });
+      if (hotOk && Array.isArray(hotData) && hotData.length > 0) {
+        text += `\n${chain.toUpperCase()} 热门代币(${hotData.length}个，24h):`;
+        const summary = hotData.slice(0, 8).map(t =>
+          `${t.tokenSymbol}(涨${t.change}%·${Number(t.holders).toLocaleString()}人·成交$${Number(t.volume).toFixed(0)})`
+        );
+        text += `\n${summary.join(" | ")}`;
+        const risky = hotData.filter(t => parseInt(t.riskLevelControl) >= 4);
+        if (risky.length > 0) {
+          text += `\n⚠️ 高风险代币: ${risky.map(t => t.tokenSymbol).join(", ")}`;
         }
       } else {
-        const quote = await mcp("/swap/quote");
-        if (quote && !quote._error) text += `\n报价: ${quote.from_token}→${quote.to_token} | 1:${quote.price}`;
+        text += `\n${chain.toUpperCase()} 暂无热门代币数据`;
       }
+    }
+
+    // ═══ Wallet / portfolio (intent OR address-in-message trigger) ═══
+    const hasAddressInMsg = /0x[a-fA-F0-9]{40}/.test(userMsg);
+    if (intentSet.has("wallet") || intentSet.has("transfer") || hasAddressInMsg) {
+      const addrInMsg = userMsg.match(/0x[a-fA-F0-9]{40}/)?.[0] || "";
+      if (addrInMsg) {
+        // Use OKX Wallet REST API for reliable address lookup
+        const [totalR, detailR] = await Promise.all([
+          okx.getTotalValue(addrInMsg, "1"),
+          okx.getAllTokenBalances(addrInMsg, "1"),
+        ]);
+        if (totalR.ok && totalR.data?.[0]) {
+          const totalUsd = parseFloat(totalR.data[0].totalValue);
+          text += `\n地址 ${addrInMsg.slice(0,6)}...${addrInMsg.slice(-4)} 总资产: $${totalUsd.toFixed(2)}`;
+          const assets = detailR.data?.[0]?.tokenAssets || [];
+          if (assets.length > 0) {
+            const top = assets.slice(0, 10).map(a =>
+              `${a.symbol}: ${Number(a.balance).toFixed(4)} ($${(Number(a.tokenPrice) * Number(a.balance)).toFixed(2)})${a.isRiskToken ? " ⚠️" : ""}`
+            );
+            text += `\n持仓(${assets.length}个): ${top.join(", ")}`;
+          } else if (totalUsd < 0.01) {
+            text += `\n该地址暂无资产`;
+          }
+        } else {
+          text += `\n地址 ${addrInMsg.slice(0,6)}...${addrInMsg.slice(-4)} 暂无链上资产（余额为 0 或地址未在主流链活动）`;
+        }
+      } else {
+        text += "\n【无钱包地址】用户未提供地址。请用户提供钱包地址或去钱包页面登录。";
+      }
+    }
+
+    // ═══ Gas info ═══
+    if (intentSet.has("gas")) {
+      text += `\n主流链 Gas 参考: ETH~15 Gwei | BSC~3 Gwei | Polygon~30 Gwei | Base~0.01 Gwei | X Layer 免 Gas | Solana~0.000005 SOL`;
+      text += `\n💡 X Layer 链 0 Gas 费用，推荐用于小额交易`;
     }
 
   } else if (agent === "dolphin") {
+
     if (intentSet.has("wallet") || intentSet.has("transfer")) {
       const [status, balance] = await Promise.all([mcp("/wallet/status", reqHeaders), mcp("/wallet/balance", reqHeaders)]);
       const { text: sd, cards: sc } = buildSharedCards(status, undefined, balance);
@@ -597,6 +745,9 @@ export async function POST(req: NextRequest) {
     ensureUser(userId);
 
     let system = SYSTEM_PROMPTS[agent];
+    if (agent === "onchain") {
+      system += "\n\n" + loadKB();
+    }
     if (!system) return Response.json({ reply: `未知 Agent: ${agent}` });
 
     const cid = conversationId || uid();

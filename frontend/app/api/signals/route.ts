@@ -1,82 +1,203 @@
 import { NextRequest, NextResponse } from "next/server";
-import { safeFetch } from "@/lib/fetch";
+import okx from "@/lib/okx";
 
-const MCP = process.env.MCP_API_URL || "";
+// Cache TTLs in ms
+const LIST_TTL = 30_000;       // 30s — token list
+const PRICE_TTL = 10_000;      // 10s — prices
 
-// Cache kline data for 5 minutes to avoid rate limits
-const klineCache = new Map<string, { data: number[]; ts: number }>();
+const listCache = new Map<string, { data: SignalItem[]; ts: number }>();
+const priceCache = new Map<string, { data: PriceMap; ts: number }>();
 
-async function getSparkline(symbol: string): Promise<number[]> {
-  const key = symbol.toUpperCase();
-  const cached = klineCache.get(key);
-  if (cached && Date.now() - cached.ts < 300000) return cached.data;
-  try {
-    const { data } = await safeFetch(`${MCP}/market/kline/${key}?timeframe=15m&limit=20`, { signal: AbortSignal.timeout(5000) });
-    const candles = (data as { candles?: number[][] })?.candles || [];
-    const prices = candles.map((c: number[]) => c[4]); // close price
-    if (prices.length) {
-      klineCache.set(key, { data: prices, ts: Date.now() });
-      return prices;
-    }
-  } catch { /* fall through */ }
-  return [];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function cacheGet(cache: Map<string, any>, key: string, ttl: number) {
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.ts < ttl) return hit.data;
+  return null;
 }
 
-export async function GET(req: NextRequest) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function cacheSet(cache: Map<string, any>, key: string, data: unknown) {
+  cache.set(key, { data, ts: Date.now() });
+  if (cache.size > 200) {
+    const oldest = [...cache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
+    if (oldest) cache.delete(oldest[0]);
+  }
+}
+
+// ── Token list ──────────────────────────────────────────
+
+interface SignalItem {
+  chainIndex: string;
+  symbol: string;
+  name: string;
+  logo: string;
+  price?: string;
+  volume1h: string;
+  buyTx1h: string;
+  sellTx1h: string;
+  holders: string;
+  marketCap: string;
+  created: string;
+  // Security tags — 0–100 percentages
+  security: {
+    top10Holdings: number;
+    devHoldings: number;
+    insiders: number;
+    bundlers: number;
+    snipers: number;
+    freshWallets: number;
+    phishing: number;
+  };
+  // Risk flags
+  flags: {
+    riskToken: boolean;
+    devSoldAll?: boolean;
+    communityTakeover: boolean;
+    dexScreenerPaid: boolean;
+    liveOnPumpFun: boolean;
+  };
+  // Social
+  social: {
+    x?: string;
+    telegram?: string;
+    website?: string;
+  };
+  bondingPercent: string;
+  creatorAddress: string;
+}
+
+async function fetchTokenList(chain: string, stage: string): Promise<SignalItem[]> {
+  const cacheKey = `list:${chain}:${stage}`;
+  const cached = cacheGet(listCache, cacheKey, LIST_TTL);
+  if (cached) return cached as SignalItem[];
+
+  const params: Record<string, string> = { chainIndex: chain, stage, sort: "createdTimestamp", order: "desc" };
+  const { ok, data } = await okx.getTokenList(params);
+  if (!ok || !Array.isArray(data)) return [];
+
+  const items: SignalItem[] = data.map((t) => ({
+    chainIndex: t.chainIndex,
+    symbol: t.symbol,
+    name: t.name,
+    logo: t.logoUrl || "",
+    volume1h: t.market?.volumeUsd1h || "0",
+    buyTx1h: t.market?.buyTxCount1h || "0",
+    sellTx1h: t.market?.sellTxCount1h || "0",
+    holders: t.tags?.totalHolders || "0",
+    marketCap: t.market?.marketCapUsd || "0",
+    created: t.createdTimestamp || "",
+    security: {
+      top10Holdings: parseFloat(t.tags?.top10HoldingsPercent || "0"),
+      devHoldings: parseFloat(t.tags?.devHoldingsPercent || "0"),
+      insiders: parseFloat(t.tags?.insidersPercent || "0"),
+      bundlers: parseFloat(t.tags?.bundlersPercent || "0"),
+      snipers: parseFloat(t.tags?.snipersPercent || "0"),
+      freshWallets: parseFloat(t.tags?.freshWalletsPercent || "0"),
+      phishing: parseFloat(t.tags?.suspectedPhishingWalletPercent || "0"),
+    },
+    flags: {
+      riskToken: false, // determined by additional check
+      communityTakeover: t.social?.communityTakeover || false,
+      dexScreenerPaid: t.social?.dexScreenerPaid || false,
+      liveOnPumpFun: t.social?.liveOnPumpFun || false,
+    },
+    social: {
+      x: t.social?.x || undefined,
+      telegram: t.social?.telegram || undefined,
+      website: t.social?.website || undefined,
+    },
+    bondingPercent: t.bondingPercent || "0",
+    creatorAddress: t.creatorAddress || "",
+  }));
+
+  cacheSet(listCache, cacheKey, items);
+  return items;
+}
+
+// ── Prices — batch fetch for display ────────────────────
+
+interface PriceMap {
+  [key: string]: string;
+}
+
+async function fetchPrices(addresses: { chainIndex: string; tokenContractAddress: string }[]): Promise<PriceMap> {
+  if (!addresses.length) return {};
+  const cacheKey = `prices:${addresses.map(a => `${a.chainIndex}:${a.tokenContractAddress}`).sort().join(",")}`;
+  const cached = cacheGet(priceCache, cacheKey, PRICE_TTL);
+  if (cached) return cached as PriceMap;
+
+  const { ok, data } = await okx.getPrices(addresses);
+  if (!ok || !Array.isArray(data)) return {};
+
+  const map: PriceMap = {};
+  for (const p of data) {
+    map[`${p.chainIndex}:${p.tokenContractAddress}`] = p.price;
+  }
+  cacheSet(priceCache, cacheKey, map);
+  return map;
+}
+
+// ── Main handler ────────────────────────────────────────
+
+export async function GET(_req: NextRequest) {
   try {
-    const [ethRes, solRes] = await Promise.all([
-      safeFetch(`${MCP}/signals/smart-money?chain=ethereum&limit=30`, { signal: AbortSignal.timeout(15000) }),
-      safeFetch(`${MCP}/signals/smart-money?chain=solana&limit=10`, { signal: AbortSignal.timeout(15000) }),
+    const [solNew, solMigrating, solMigrated] = await Promise.all([
+      fetchTokenList("501", "NEW"),
+      fetchTokenList("501", "MIGRATING"),
+      fetchTokenList("501", "MIGRATED"),
     ]);
 
-    const ethSignals = (ethRes.data as Record<string, unknown>)?.signals as Array<Record<string, unknown>> || [];
-    const solSignals = (solRes.data as Record<string, unknown>)?.signals as Array<Record<string, unknown>> || [];
-    const allSignals = [...ethSignals, ...solSignals];
+    // Deduplicate by contract address
+    const seen = new Set<string>();
+    const all: SignalItem[] = [];
+    for (const s of [...solNew, ...solMigrated, ...solMigrating]) {
+      const key = `${s.chainIndex}:${s.symbol}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      all.push(s);
+    }
 
-    // Fetch real klines for sparklines (batch, non-blocking)
-    const symbols = [...new Set(allSignals.map(s => {
-      const tk = s.token as Record<string, unknown> | undefined;
-      return ((tk?.symbol as string) || "").toUpperCase();
-    }).filter(Boolean))];
-    const sparklineMap = new Map<string, number[]>();
-    await Promise.all(symbols.slice(0, 10).map(async (sym) => {
-      sparklineMap.set(sym, await getSparkline(sym));
-    }));
-
-    const signals = allSignals.map((s) => {
-      const tk = s.token as Record<string, unknown> | undefined;
-      const symbol = (tk?.symbol as string || s.symbol as string || "?").slice(0, 12);
-      const name = (tk?.name as string || symbol).slice(0, 20);
-      const logo = (tk?.logo as string) || "";
-      const mc = Number(tk?.marketCapUsd || s.price || 0);
-      const mcStr = mc > 1e9 ? `$${(mc/1e9).toFixed(2)}B` : mc > 1e6 ? `$${(mc/1e6).toFixed(2)}M` : `$${mc.toLocaleString()}`;
-      const amt = Number(s.amountUsd || 0);
-      const volStr = amt > 1000 ? `$${(amt/1000).toFixed(1)}K` : `$${amt.toFixed(0)}`;
-      const ratio = Number(s.soldRatioPercent || 0);
-      const action = ratio > 80 ? "大量卖出" : ratio > 50 ? "减仓" : ratio > 0 ? "部分卖出" : "买入";
-      const wt = Number(s.walletType || 0);
-      const whale = wt === 1 ? "聪明钱" : wt === 2 ? "KOL" : wt === 3 ? "巨鲸" : "信号";
-      const ts = Number(s.timestamp || 0);
-      const mins = ts ? Math.floor((Date.now() - ts) / 60000) : 0;
-      const time = mins < 1 ? "刚刚" : mins < 60 ? `${mins}分` : `${Math.floor(mins/60)}时`;
-      const sparkline = sparklineMap.get(symbol.toUpperCase()) || [];
-      return { symbol, name, logo, price: mcStr, mc: mcStr, volume: volStr, whale, action, time, sparkline };
+    // Sort: NEW first (hottest), then by volume
+    all.sort((a, b) => {
+      if (a.bondingPercent !== b.bondingPercent) return parseFloat(b.bondingPercent) - parseFloat(a.bondingPercent);
+      return parseFloat(b.volume1h) - parseFloat(a.volume1h);
     });
 
-    const seen = new Set<string>();
-    const unique = signals.filter((s) => { if (seen.has(s.symbol)) return false; seen.add(s.symbol); return true; });
+    // Batch fetch prices for top items
+    const top = all.slice(0, 20);
+    const priceAddresses = top
+      .filter(s => s.symbol)
+      .map(s => ({ chainIndex: s.chainIndex, tokenContractAddress: s.symbol }));
+    const prices = await fetchPrices(priceAddresses);
 
-    const trading = unique.filter((s) => s.whale !== "信号").slice(0, 8);
-    const tradingSymbols = new Set(trading.map(s => s.symbol));
-    const scanning = unique.filter((s) => !tradingSymbols.has(s.symbol));
+    for (const s of top) {
+      const key = `${s.chainIndex}:${s.symbol}`;
+      if (prices[key]) s.price = prices[key];
+    }
+
+    // Score security: higher = safer
+    const topWithScore = top.map(s => {
+      const sec = s.security;
+      // Lower concentrations and lower bot ratios = safer
+      const riskScore = (
+        sec.top10Holdings * 0.3 +
+        sec.devHoldings * 0.2 +
+        sec.insiders * 0.2 +
+        sec.bundlers * 0.1 +
+        sec.snipers * 0.1 +
+        sec.freshWallets * 0.05 +
+        sec.phishing * 0.05
+      );
+      return { ...s, securityScore: Math.max(0, Math.min(100, 100 - riskScore)) };
+    });
 
     return NextResponse.json({
-      signals: unique.slice(0, 20),
-      trading: trading.length ? trading : unique.slice(0, 6),
-      scanning: scanning.length ? scanning : unique.slice(6),
-      source: "OnchainOS",
+      signals: topWithScore,
+      total: topWithScore.length,
+      source: "OKX Market API",
     });
   } catch (e) {
-    return NextResponse.json({ signals: [], trading: [], scanning: [], error: String(e) });
+    console.error("[signals] error:", e);
+    return NextResponse.json({ signals: [], total: 0, error: String(e) });
   }
 }
