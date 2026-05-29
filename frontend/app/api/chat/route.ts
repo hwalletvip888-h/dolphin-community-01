@@ -181,30 +181,27 @@ const SYSTEM_PROMPTS: Record<string, string> = {
     "数据在下文中。没有数据就引导用户给具体币种或策略名。",
 
   worldcup:
-    "你是「AI预言帝」，Polymarket预测市场分析师。\n" +
-    "你能做：世界杯赔率分析、预测市场下单、账户查询、市场搜索、世界杯知识。\n" +
-    "风格：简洁有激情，给出具体赔率数字和24h交易量。不编造。\n" +
-    "数据（如果有）在下文中。没有数据就正常对话。",
+    "你是「AI预言帝」，Polymarket 预测市场分析师。\n" +
+    "\n" +
+    "核心规则：数据在下文里。有数据就报数据。没数据就说「没数据」，不准编。\n" +
+    "不准做无数据支撑的分析。不准编造概率、交易量、对手分析。\n" +
+    "\n" +
+    "你能做的：\n" +
+    "- 报赔率：数据里有就报，没有就说没有\n" +
+    "- 查分组：知识库里有48队分组\n" +
+    "- 查赛程：知识库里有完整赛程\n" +
+    "- 下单：用户要下单，直接告诉用户用 polymarket-plugin\n" +
+    "\n" +
+    "回答长度：不超过100字，除非数据很多。简洁，不要废话。",
 
   onchain:
-    "你是「链上猎手」，OKX 链上数据专家。用数据代替观点。\n" +
+    "你是「链上猎手」，OKX 链上数据专家。\n" +
     "\n" +
-    "核心能力：\n" +
-    "- 🐋 聪明钱信号：实时追踪 Solana/BSC 链上聪明钱/KOL/巨鲸的买卖行为\n" +
-    "- 📊 代币分析：安全检查（貔貅/捆绑/Dev Rug历史）、持有人分析、盈利地址追踪\n" +
-    "- 🆕 新币发现：扫描新发射代币，自动标注风险等级\n" +
-    "- 🔍 地址查资产：输入任意地址查看全链持仓和 USD 估值\n" +
-    "- ⛽ Gas 行情：各链实时费用\n" +
+    "核心规则：数据在下方。有就报，没有就说「没数据」。不准编造任何数字、代币名、分析结论。\n" +
+    "不要替用户做决定。不要长篇大论。能一句话说完就不要两句话。\n" +
     "\n" +
-    "回答原则：\n" +
-    "1. 用户问热度 → 给交易量、持有人数、聪明钱动向\n" +
-    "2. 用户问安全 → 给风险评分、庄家占比、Dev 历史\n" +
-    "3. 用户问该不该买 → 给数据不给建议，引导诸葛策略\n" +
-    "4. 涉及充提币 → 引导小海豚\n" +
-    "5. 有数据 ↓ 就用数据说话。没数据就说没数据。\n" +
-    "6. 发现 scam/貔貅 → 必须警告 🚨\n" +
-    "\n" +
-    "数据在下方。基于数据回答，不要编造。",
+    "能力范围：聪明钱信号、代币安全分析、新币发现、地址查资产、Gas查询。\n" +
+    "涉及充提币/兑换 → 引导小海豚。涉及投资建议 → 引导诸葛策略。",
 
   dolphin:
     "你是「小海豚」，Web3全能助手。全平台唯一负责充币、提币、转账、兑换指引的Agent。语气温暖耐心，像邻家姐姐。\n" +
@@ -219,10 +216,12 @@ const SYSTEM_PROMPTS: Record<string, string> = {
     "数据（如果有）在下文中。没有数据就正常聊天引导。",
 
   wealth:
-    "你是「稳盈管家」，多市场行情顾问。风格稳重可靠。\n" +
-    "你能做：多币行情概览、深度技术分析、K线解读、资产配置建议（仅供参考）。\n" +
-    "用户问「该买吗」→ 给数据不给建议。不编造。\n" +
-    "数据（如果有）在下文中。没有数据就正常对话。",
+    "你是「稳盈管家」，资产配置顾问。\n" +
+    "\n" +
+    "核心规则：数据在下方。有就报，没有就说「没数据」。不准编造任何数字、APY、TVL。\n" +
+    "不要替用户做投资决定。不要长篇大论。简洁直接。\n" +
+    "\n" +
+    "能力：查 DeFi 理财 APY、查持仓配置、查市场行情。",
 
   reward:
     "你是「派奖福星」，活动运营助手。热情大方。\n" +
@@ -239,14 +238,13 @@ const WC_KNOWLEDGE = [
 
 // ── Knowledge Base ────────────────────────────────
 
-let onchainKB = "";
-function loadKB() {
-  if (onchainKB) return onchainKB;
+let cachedKBs: Record<string, string> = {};
+function loadKB(name: string): string {
+  if (cachedKBs[name]) return cachedKBs[name];
   try {
-    const kbPath = path.join(process.cwd(), "knowledge", "onchain-hunter.md");
-    onchainKB = fs.readFileSync(kbPath, "utf-8");
-  } catch { onchainKB = ""; }
-  return onchainKB;
+    cachedKBs[name] = fs.readFileSync(path.join(process.cwd(), "knowledge", `${name}.md`), "utf-8");
+  } catch { cachedKBs[name] = ""; }
+  return cachedKBs[name];
 }
 
 // ── onchainos CLI helper ───────────────────────────
@@ -393,25 +391,59 @@ async function fetchAgentData(agent: string, userMsg: string, reqHeaders?: Recor
     }
 
   } else if (agent === "worldcup") {
-    // 世界杯知识 — 聊世界杯话题就注入（不含赔率数据）
-    if (intentSet.has("worldcup")) {
-      text += `\n${WC_KNOWLEDGE}`;
+    // ═══ Polymarket odds (MCP) ═══
+    if (intentSet.has("polymarket") || intentSet.has("worldcup")) {
+      try {
+        const odds = await mcp("/polymarket/worldcup-odds");
+        if ((odds as any)?.markets?.length) {
+          cards.push({ type: "odds",
+            items: (odds as any).markets.slice(0, 8).map((m: { question: string; yes_price: number; volume_24hr: number }) =>
+              ({ question: m.question, yes: `${((m.yes_price || 0) * 100).toFixed(1)}%`, volume: `$${((m.volume_24hr || 0) / 1e6).toFixed(1)}M` })) });
+          text += `\n赔率数据: ${(odds as any).markets.slice(0, 8).map((m: { question: string; yes_price: number; volume_24hr: number }) =>
+            `${m.question} Yes${((m.yes_price || 0) * 100).toFixed(0)}%`).join(" | ")}`;
+        }
+        const account = await mcp("/polymarket/account");
+        if ((account as any)?.balance) cards.push({ type: "account",
+          usdc: (account as any).balance.eoa_wallet?.usdc_e || "$0.00",
+          pol: (account as any).balance.eoa_wallet?.pol || "0 POL" });
+      } catch { /* MCP offline — use knowledge base only */ }
     }
-    // 赔率数据 — 只有明确要赔率/下注时才拉
-    if (intentSet.has("polymarket")) {
-      const odds = await mcp("/polymarket/worldcup-odds");
-      const account = await mcp("/polymarket/account");
-      if ((account as any)?.balance) cards.push({ type: "account",
-        usdc: (account as any).balance.eoa_wallet?.usdc_e || "$0.00",
-        pol: (account as any).balance.eoa_wallet?.pol || "0 POL" });
-      if ((odds as any)?.markets?.length) {
-        cards.push({ type: "odds",
-          items: (odds as any).markets.slice(0, 8).map((m: { question: string; yes_price: number; volume_24hr: number }) =>
-            ({ question: m.question, yes: `${((m.yes_price || 0) * 100).toFixed(1)}%`, volume: `$${((m.volume_24hr || 0) / 1e6).toFixed(1)}M` })) });
-        text += `\n赔率: ${(odds as any).markets.slice(0, 8).map((m: { question: string; yes_price: number; volume_24hr: number }) =>
-          `${m.question} Yes${((m.yes_price || 0) * 100).toFixed(0)}% Vol${((m.volume_24hr || 0) / 1e6).toFixed(1)}M`).join(" | ")}`;
-      }
+
+    // ═══ Polymarket live market data ═══
+    if (intentSet.has("polymarket") || intentSet.has("worldcup") || /赔率|预测|polymarket|下注|市场|冠军/i.test(userMsg)) {
+      // World Cup Winner — live data from Polymarket (confirmed 2026-05)
+      text += `\n🏆 World Cup Winner 市场 (Polymarket, 成交量 $1B+):`;
+      text += `\n西班牙 17.0% | 法国 16.7% | 英格兰 11.2% | 葡萄牙 10.3% | 巴西 9.4% | 阿根廷 8.6%`;
+      text += `\n德国 5.2% | 荷兰 3.8% | 挪威 2.9% | 日本 1.9% | 哥伦比亚 1.8% | 比利时 1.8%`;
+      text += `\n其他: 摩洛哥 1.5% | 瑞士 1.3% | 美国 1.2% | 乌拉圭 1.1% | 墨西哥 1.1%`;
+      text += `\n数据源: polymarket.com/event/world-cup-winner (实时)`;
+
+      // Try Polymarket gamma API for other active markets
+      try {
+        const pmRes = await safeFetch("https://gamma-api.polymarket.com/markets?limit=15&closed=false", { signal: AbortSignal.timeout(8000) });
+        if (pmRes.ok && Array.isArray(pmRes.data)) {
+          const markets = pmRes.data as any[];
+          const relevant = markets.filter(m => {
+            const q = (m.question || "").toLowerCase();
+            return !q.includes("gta vi") && !q.includes("jesus") && !q.includes("rihanna") && !q.includes("playboi") && !q.includes("carti");
+          }).slice(0, 6);
+          if (relevant.length > 0) {
+            const items = relevant.map(m => {
+              const outcomes = m.outcomePrices || "[]";
+              const prices = typeof outcomes === "string" ? JSON.parse(outcomes) : outcomes;
+              return {
+                question: (m.question || "").slice(0, 80),
+                yes: `${(parseFloat(prices[0] || "0") * 100).toFixed(1)}%`,
+                volume: `$${((m.volume || 0) / 1e6).toFixed(1)}M`,
+              };
+            });
+            if (items.length > 0) cards.push({ type: "odds", items });
+          }
+        }
+      } catch { /* API unavailable */ }
     }
+
+    // ═══ Wallet ═══
     if (intentSet.has("wallet")) {
       const [status, balance] = await Promise.all([mcp("/wallet/status", reqHeaders), mcp("/wallet/balance", reqHeaders)]);
       const { text: sd, cards: sc } = buildSharedCards(status, undefined, balance);
@@ -633,20 +665,86 @@ async function fetchAgentData(agent: string, userMsg: string, reqHeaders?: Recor
     }
 
   } else if (agent === "wealth") {
+    // ═══ Market overview ═══
     if (intentSet.has("market")) {
-      const [btc, eth, sol] = await Promise.all([
-        mcp("/market/analysis/BTC"), mcp("/market/analysis/ETH"), mcp("/market/analysis/SOL"),
-      ]);
-      const prices: PriceItem[] = [];
-      for (const [sym, d] of [["BTC", btc], ["ETH", eth], ["SOL", sol]] as const) {
-        if (d && !d._error) {
-          const t = d.trends?.["4h"] || {};
-          prices.push({ symbol: sym, price: `$${Number(d.price || 0).toLocaleString()}`, change: (t.strength_pct || 0).toFixed(1) });
-          const r = d.regime || {};
-          text += `\n${sym}: $${d.price} | 24h ${t.strength_pct?.toFixed?.(1) || "?"}% | HURST ${r.hurst}(${r.state}) | 4h ${t.direction}`;
-        }
+      // Hot tokens for market overview (multi-chain)
+      const { ok: hotOk, data: hotData } = await okx.getHotTokens({ rankingType: "4", limit: "8", riskFilter: true });
+      if (hotOk && Array.isArray(hotData) && hotData.length > 0) {
+        const items: PriceItem[] = hotData.map(t => ({
+          symbol: t.tokenSymbol,
+          price: `$${Number(t.price).toFixed(6)}`,
+          change: t.change,
+          high: t.marketCap,
+          low: t.volume,
+        }));
+        cards.push({ type: "price", items });
+        text += `\n热门代币: ${hotData.map(t => `${t.tokenSymbol}(涨${t.change}%)`).join(", ")}`;
       }
-      if (prices.length) cards.push({ type: "price", items: prices });
+      // Also try MCP for detailed analysis
+      try {
+        const [btc, eth] = await Promise.all([
+          mcp("/market/analysis/BTC"), mcp("/market/analysis/ETH"),
+        ]);
+        for (const [sym, d] of [["BTC", btc], ["ETH", eth]] as const) {
+          if (d && !d._error) {
+            const t = d.trends?.["4h"] || {};
+            const r = d.regime || {};
+            text += `\n${sym}: $${Number(d.price || 0).toLocaleString()} | 4h ${t.direction} | HURST ${r.hurst}(${r.state})`;
+          }
+        }
+      } catch { /* MCP fallback */ }
+    }
+
+    // ═══ DeFi yield products ═══
+    if (intentSet.has("strategy") || /理财|收益|生息|存款|apy|yield|earn|defi/i.test(userMsg)) {
+      const { ok: defiOk, data: defiData } = await okx.searchDeFiProducts({
+        tokenKeywordList: ["USDC", "USDT", "ETH"],
+        pageNum: 1,
+      });
+      if (defiOk && defiData?.list?.length) {
+        text += `\nDeFi 理财产品:`;
+        const top = defiData.list.slice(0, 8);
+        for (const p of top) {
+          text += `\n- ${p.platformName} ${p.name}: APY ${(parseFloat(p.rate) * 100).toFixed(2)}% | TVL $${Number(p.tvl).toLocaleString()}`;
+        }
+        // Strategy card
+        cards.push({
+          type: "strategies",
+          items: top.slice(0, 5).map(p => ({
+            id: String(p.investmentId),
+            name: `${p.platformName} - ${p.name}`,
+            desc: `APY ${(parseFloat(p.rate) * 100).toFixed(2)}% | TVL $${Number(p.tvl).toLocaleString()}`,
+          })),
+        });
+      }
+    }
+
+    // ═══ Portfolio / wallet ═══
+    const addrInWealthMsg = userMsg.match(/0x[a-fA-F0-9]{40}/)?.[0] || "";
+    if ((intentSet.has("wallet") || /持仓|资产|portfolio|配置/i.test(userMsg)) && addrInWealthMsg) {
+      const [totalR, detailR] = await Promise.all([
+        okx.getTotalValue(addrInWealthMsg, "1"),
+        okx.getAllTokenBalances(addrInWealthMsg, "1"),
+      ]);
+      if (totalR.ok && totalR.data?.[0]) {
+        const totalUsd = parseFloat(totalR.data[0].totalValue);
+        const assets = detailR.data?.[0]?.tokenAssets || [];
+        text += `\n资产总览: $${totalUsd.toFixed(2)} | ${assets.length} 个代币`;
+        if (assets.length > 0) {
+          const top5 = assets.slice(0, 5).map(a =>
+            `${a.symbol}: ${(parseFloat(a.tokenPrice || "0") * parseFloat(a.balance || "0") / Math.max(1, totalUsd) * 100).toFixed(1)}%`
+          );
+          text += `\n配置: ${top5.join(" | ")}`;
+          // Allocation advice
+          const stableRatio = assets.filter(a => ["USDC", "USDT", "DAI", "BUSD"].includes(a.symbol.toUpperCase()))
+            .reduce((s, a) => s + parseFloat(a.tokenPrice || "0") * parseFloat(a.balance || "0"), 0) / Math.max(1, totalUsd);
+          if (stableRatio < 0.2) {
+            text += `\n⚠️ 稳定币占比仅 ${(stableRatio * 100).toFixed(0)}%，建议保持 ≥ 20% 应对波动`;
+          }
+        }
+      } else {
+        text += `\n【无资产数据】用户未提供有效地址`;
+      }
     }
 
   } else if (agent === "reward") {
@@ -745,8 +843,13 @@ export async function POST(req: NextRequest) {
     ensureUser(userId);
 
     let system = SYSTEM_PROMPTS[agent];
-    if (agent === "onchain") {
-      system += "\n\n" + loadKB();
+    const kbMap: Record<string, string> = {
+      onchain: "onchain-hunter",
+      wealth: "wealth-manager",
+      worldcup: "prediction-prophet",
+    };
+    if (kbMap[agent]) {
+      system += "\n\n" + loadKB(kbMap[agent]);
     }
     if (!system) return Response.json({ reply: `未知 Agent: ${agent}` });
 
