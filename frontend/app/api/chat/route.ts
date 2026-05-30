@@ -118,7 +118,6 @@ function uid() {
  * @param reqHeaders Headers to forward to MCP (Authorization, etc.)
  */
 async function mcp(path: string, reqHeaders?: Record<string, string>) {
-  // Include auth snippet in cache key so different users don't share cached auth results
   const authSuffix = reqHeaders?.["Authorization"]?.slice(-12) || "noauth";
   const cacheKey = `${path}|${authSuffix}`;
 
@@ -129,10 +128,13 @@ async function mcp(path: string, reqHeaders?: Record<string, string>) {
   if (MCP_API_KEY) fetchHeaders["X-API-Key"] = MCP_API_KEY;
   if (reqHeaders) Object.assign(fetchHeaders, reqHeaders);
 
-  const { data } = await safeFetch(`${getMCP()}${path}`, {
+  const { ok, data } = await safeFetch(`${getMCP()}/api/h/v1${path}`, {
     headers: Object.keys(fetchHeaders).length ? fetchHeaders : undefined,
     signal: AbortSignal.timeout(MCP_TIMEOUT),
   });
+
+  // Reject auth errors and non-200 responses
+  if (!ok || (data && (data as any).error)) return cached?.data || null;
 
   if (data) {
     cache.set(cacheKey, { data, ts: Date.now() });
@@ -151,7 +153,7 @@ function mcpHeadersFromRequest(req: NextRequest): Record<string, string> {
 }
 
 function logAgent(agent_id: string, action: string, result: string) {
-  fetch(`${getMCP()}/agent/log`, {
+  fetch(`${getMCP()}/api/h/v1/agent/log`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ agent_id, action, result }),
@@ -168,17 +170,18 @@ function cleanHistory(content: string): string {
 const SYSTEM_PROMPTS: Record<string, string> = {
   zhuge:
     "你是「诸葛策略」，加密货币量化分析师。\n" +
-    "你能做：\n" +
-    "- 行情分析: BTC/ETH/SOL及任意币种实时价格+HURST趋势+EMA均线+布林带+Pivot支撑阻力\n" +
-    "- 交易信号: 基于EMA金叉死叉+布林带突破的策略信号(RR/入场/止盈/止损)\n" +
-    "- 多币扫描: 一键扫描8币种，按信号质量排序\n" +
-    "- 策略回测: H1布林带均值回归/H3支撑狙击，收益/胜率/夏普比\n" +
-    "- 持仓管理: 实时浮动盈亏\n" +
-    "- K线数据: 历史OHLCV，支持多时间框架\n" +
-    "风格: 简洁专业，每句话带数字。不编造，没数据就说没数据。\n" +
-    "HURST>0.55趋势 | <0.45震荡 | 之间观望 | 每单≤10%仓位必带止损\n" +
-    "用户说充值/转账/入金/地址 → 引导切换到小海豚。\n" +
-    "数据在下文中。没有数据就引导用户给具体币种或策略名。",
+    "\n" +
+    "核心规则：\n" +
+    "1. 「===== 数据 =====」里有什么就报什么。没数据就说没有。不准编造数字。\n" +
+    "2. 数据里有 HURST 就按规则给分析：\n" +
+    "   - HURST<0.45 → 震荡市，推荐布林带均值回归，仓位≤5%，止损用2×ATR\n" +
+    "   - HURST>0.55 → 趋势市，推荐EMA顺势，仓位≤10%，止损用突破反向点\n" +
+    "   - 0.45-0.55 → 观望，仓位≤2%\n" +
+    "3. 用户明确要求开仓/执行 → 直接执行并报结果。同时提示风险。\n" +
+    "4. 没有监控功能。没有历史数据。用户问就诚实告知。\n" +
+    "5. 简洁。50字内说完。\n" +
+    "\n" +
+    "能力：OKX CEX行情(HURST/EMA/Pivot)、多币扫描、策略回测。",
 
   worldcup:
     "你是「AI预言帝」，Polymarket 预测市场分析师。\n" +
@@ -204,16 +207,18 @@ const SYSTEM_PROMPTS: Record<string, string> = {
     "涉及充提币/兑换 → 引导小海豚。涉及投资建议 → 引导诸葛策略。",
 
   dolphin:
-    "你是「小海豚」，Web3全能助手。全平台唯一负责充币、提币、转账、兑换指引的Agent。语气温暖耐心，像邻家姐姐。\n" +
-    "你能做：充币指引(给地址)、提币指引(帮用户填表单)、兑换指引(帮用户选币种)、转账指引、查余额、安全科普、术语解释、策略推荐、活动入口。\n" +
-    "用生活类比解释技术。先回答再延伸，结尾给下一步建议。\n" +
-    "⚠️ 重要：\n" +
-    "- 用户问「到账了吗」→ 重新查钱包余额对比数据回答，不猜不编\n" +
-    "- 用户说「我要充币」「给我地址」→ 引导用户去侧边栏点充币按钮，那里显示真实地址\n" +
-    "- 用户说「我要提币」→ 引导用户去侧边栏点提币按钮填表单\n" +
-    "- 用户说「我要兑换」→ 引导用户去侧边栏点兑换按钮操作\n" +
-    "- 任何链上操作前先确认钱包已登录，未登录则引导去登录\n" +
-    "数据（如果有）在下文中。没有数据就正常聊天引导。",
+    "你是「小海豚」，平台全能向导。语气温暖耐心，像邻家姐姐。\n" +
+    "\n" +
+    "核心规则：不准编造。没数据就说「我查不到」。涉及充提币/兑换→引导去钱包Tab操作。\n" +
+    "涉及投资建议→引导去对应Agent（链上猎手/诸葛策略/稳盈管家）。\n" +
+    "\n" +
+    "你能帮用户:\n" +
+    "- 平台导航：哪个Agent干什么、功能在哪里\n" +
+    "- 充提币指引：引导去钱包Tab操作（不要替用户操作）\n" +
+    "- 钱包安全科普\n" +
+    "- 新手引导：怎么开始用这个App\n" +
+    "\n" +
+    "简洁。50字内说完。",
 
   wealth:
     "你是「稳盈管家」，资产配置顾问。\n" +
@@ -224,9 +229,18 @@ const SYSTEM_PROMPTS: Record<string, string> = {
     "能力：查 DeFi 理财 APY、查持仓配置、查市场行情。",
 
   reward:
-    "你是「派奖福星」，活动运营助手。热情大方。\n" +
-    "你能做：活动列表、活动详情、领奖指引、排行榜。\n" +
-    "数据（如果有）在下文中。没有数据就列出已知活动。",
+    "你是「派奖福星」，平台活动与奖励助手。热情大方，像过年发红包的亲戚。\n" +
+    "\n" +
+    "规则：数据在下方。有就报，没数据就说「暂无活动」。不准编造。\n" +
+    "\n" +
+    "你能帮用户：\n" +
+    "- 获取邀请码、查看邀请统计\n" +
+    "- 查排行榜（邀请人数排名）\n" +
+    "- 查看进行中的活动\n" +
+    "- 查询自己的奖励记录\n" +
+    "- 领取待领取的奖励\n" +
+    "\n" +
+    "简洁。50字内说完。",
 };
 
 const WC_KNOWLEDGE = [
@@ -309,45 +323,176 @@ async function fetchAgentData(agent: string, userMsg: string, reqHeaders?: Recor
   const intentSet = new Set(intent.intents);
   let text = "";
   let cards: CardData[] = [];
+  let mcpData: Record<string, any> = {};
 
   if (agent === "zhuge") {
-    // 行情分析 — 只有问价格/走势才拉
-    if (intentSet.has("market")) {
-      const [btc, eth, sol, scan] = await Promise.all([
-        mcp("/market/analysis/BTC"), mcp("/market/analysis/ETH"), mcp("/market/analysis/SOL"),
-        mcp("/market/scan"),
-      ]);
-      const prices: PriceItem[] = [];
-      const sigItems: SignalItem[] = [];
-      for (const [sym, d] of [["BTC", btc], ["ETH", eth], ["SOL", sol]] as const) {
-        if (d && !d._error) {
-          const t = d.trends?.["4h"] || {};
-          prices.push({
-            symbol: sym, price: `$${Number(d.price || 0).toLocaleString()}`,
-            change: (t.strength_pct || 0) > 0 ? `+${t.strength_pct || 0}` : `${t.strength_pct || 0}`,
-          });
-          if (d.signals?.length)
-            for (const s of d.signals)
-              sigItems.push({ symbol: sym, direction: s.direction, entry: `$${s.entry || "?"}`, tp: `$${s.tp || "?"}`, sl: `$${s.sl || "?"}`, rr: s.rr ? `1:${s.rr}` : undefined, strategy: s.strategy });
-        }
+    // Zhuge should always try to get market data for any trading-related query
+    const isZhugeQuery = /价格|行情|买|卖|多|空|走势|分析|策略|信号|扫描|回测|止损|止盈|仓位|杠杆|爆仓|[A-Z]{2,5}/i.test(userMsg);
+    // ═══ Market data (OKX CEX + MCP) ═══
+    if (intentSet.has("market") || isZhugeQuery) {
+      // OKX CEX — spot/futures prices
+      const DEFAULT_PAIRS = ["BTC-USDT", "ETH-USDT", "SOL-USDT"];
+      const SUPPORTED = "DOGE|XRP|BNB|ADA|AVAX|LINK|DOT|MATIC|UNI|ATOM|FIL|APT|ARB|OP|LTC|ETC|SUI|NEAR|AAVE|CRV";
+      const sym = userMsg.match(new RegExp(`\\b(${SUPPORTED})\\b`, "i"))?.[0]?.toUpperCase();
+      const scanPairs = sym ? [`${sym}-USDT`, ...DEFAULT_PAIRS] : DEFAULT_PAIRS;
+      const cexPrices: PriceItem[] = [];
+      const seen = new Set<string>();
+      for (const instId of scanPairs) {
+        const sym = instId.split("-")[0];
+        if (seen.has(sym)) continue; seen.add(sym);
+        try {
+          const tkRes = await safeFetch(`https://www.okx.com/api/v5/market/ticker?instId=${instId}`, { signal: AbortSignal.timeout(5000) });
+          if (tkRes.ok && tkRes.data?.data?.[0]) {
+            const t = tkRes.data.data[0];
+            const open24h = parseFloat(t.open24h || "0");
+            const last = parseFloat(t.last || "0");
+            const change = open24h > 0 ? (((last - open24h) / open24h) * 100).toFixed(1) : "0";
+            cexPrices.push({ symbol: sym, price: `$${last}`, change });
+            text += `\n${sym}: $${last} | 24h ${change}% | Vol $${Number(t.vol24h || 0).toLocaleString()}`;
+          }
+        } catch { /* CEX unavailable */ }
       }
-      if (prices.length) cards.push({ type: "price", items: prices });
-      if (sigItems.length) cards.push({ type: "signal", items: sigItems });
-      if (scan && !scan._error) {
-        cards.push({ type: "scan", coins: scan.coins_scanned || 0, signals: scan.coins_with_signals || 0,
-          top: (scan.results || []).filter((r: { signals_count: number }) => r.signals_count > 0).slice(0, 5)
-            .map((r: { symbol: string; price: number; best_rr: number }) => ({ symbol: r.symbol, price: `$${r.price}`, rr: `${r.best_rr}` })) });
-      }
-      for (const [sym, d] of [["BTC", btc], ["ETH", eth], ["SOL", sol]] as const) {
-        if (d && !d._error) {
-          const r = d.regime || {};
-          const t4 = d.trends?.["4h"] || {};
-          const lv = d.levels || {};
-          text += `\n${sym}: $${d.price} | HURST ${r.hurst}(${r.state}) | 4h ${t4.direction} | S1 $${lv.pivot?.s1 || "?"} R1 $${lv.pivot?.r1 || "?"}`;
-          if (d.signals?.length) text += ` | 信号: ${d.signals.map((s: { strategy: string; direction: string }) => `${s.strategy} ${s.direction}`).join(", ")}`;
+      if (cexPrices.length > 0) cards.push({ type: "price", items: cexPrices });
+
+      // MCP detailed analysis (HURST/EMA/Pivot/signals)
+      const allSyms = [...new Set([...cexPrices.map(p => p.symbol), "BTC", "ETH", "SOL"])];
+      mcpData = {} as Record<string, any>;
+      try {
+        const results = await Promise.all(allSyms.map(sym => mcp(`/market/analysis/${sym}`)));
+        for (let i = 0; i < allSyms.length; i++) {
+          const sym = allSyms[i];
+          const d = results[i];
+          if (d && !(d as any)._error && !(d as any).error) {
+            mcpData[sym] = d;
+            const r = (d as any).regime || {};
+            text += `\n${sym} 技术: HURST ${r.hurst}(${r.state}) | S1 $${d.levels?.pivot?.s1 || "?"} R1 $${d.levels?.pivot?.r1 || "?"}`;
+            // Show signals if present
+            const sigs = (d as any).signals;
+            if (Array.isArray(sigs) && sigs.length > 0) {
+              text += ` | 信号: ${sigs.map((s: any) => `${s.strategy} ${s.direction}`).join(", ")}`;
+              cards.push({ type: "signal", items: sigs.map((s: any) => ({
+                symbol: sym, direction: s.direction, entry: `$${s.entry || "?"}`, tp: `$${s.tp || "?"}`, sl: `$${s.sl || "?"}`, rr: s.rr ? `1:${s.rr}` : undefined, strategy: s.strategy,
+              })) });
+            }
+          }
         }
+      } catch { /* MCP offline */ }
+
+      // Multi-coin scan score (data-side, not LLM-side)
+      const scanScores = Object.entries(mcpData).map(([sym, d]) => {
+        const r = d.regime || {};
+        const sigs = d.signals || [];
+        const score = (sigs.length > 0 ? 30 : 0) + (r.hurst < 0.45 ? 20 : r.hurst > 0.55 ? 20 : 10) + (d.levels?.pivot ? 20 : 0) + (sigs.some((s: any) => (s.rr || 0) > 2) ? 15 : 0);
+        return { sym, score, signals: sigs.length, hurst: r.hurst, state: r.state };
+      });
+      scanScores.sort((a, b) => b.score - a.score);
+      if (scanScores.length > 0) {
+        text += `\n多币扫描: ${scanScores.map(s => `${s.sym}评分${s.score}(${s.signals}信号)`).join(" | ")}`;
       }
     }
+
+    // ═══ Funding rate + Open interest (OKX CEX) ═══
+    if (/费率|funding|资金费|持仓量|open.interest|OI/i.test(userMsg)) {
+      const sym = (userMsg.match(/BTC|ETH|SOL|DOGE|XRP|BNB|ADA/i)?.[0] || "BTC").toUpperCase();
+      try {
+        const [frRes, oiRes] = await Promise.all([
+          safeFetch(`https://www.okx.com/api/v5/public/funding-rate?instId=${`${sym}-USDT-SWAP`}`, { signal: AbortSignal.timeout(5000) }),
+          safeFetch(`https://www.okx.com/api/v5/public/open-interest?instId=${`${sym}-USDT-SWAP`}`, { signal: AbortSignal.timeout(5000) }),
+        ]);
+        if (frRes.ok && frRes.data?.data?.[0]) {
+          const fr = frRes.data.data[0];
+          text += `\n${sym || "BTC"} 资金费率: ${(parseFloat(fr.fundingRate || "0") * 100).toFixed(4)}% | 下次结算: ${new Date(parseInt(fr.nextFundingTime || "0")).toLocaleTimeString()}`;
+        }
+        if (oiRes.ok && oiRes.data?.data?.[0]) {
+          const oi = oiRes.data.data[0];
+          text += `\n${sym || "BTC"} 未平仓: ${Number(oi.oi || "0").toLocaleString()} 张 | ${Number(oi.oiCcy || "0").toLocaleString()} USDT`;
+        }
+      } catch { /* CEX unavailable */ }
+    }
+
+    // ═══ Paper Trading — scan → signal → execute ═══
+    if (/开仓|下单|执行|买入.*[Uu]|做[多空]|paper|模拟开仓|试一单/i.test(userMsg)) {
+      const tradeSym = userMsg.match(/BTC|ETH|SOL|DOGE|XRP/i)?.[0] || "BTC";
+      const isLong = /做多|买[入多]|long/i.test(userMsg) || !/做空|卖[出空]|short/i.test(userMsg);
+      const amtMatch = userMsg.match(/(\d+)\s*[Uu]/);
+      const amount = amtMatch ? parseInt(amtMatch[1]) : 100;
+
+      // Get current HURST to determine strategy
+      const currentData = mcpData?.[tradeSym];
+      const hurst = currentData?.regime?.hurst || 0.5;
+
+      try {
+        // VBT computes ATR-based SL/TP from real market data
+        const tradeInput = JSON.stringify({
+          symbol: tradeSym, direction: isLong ? "long" : "short", amount,
+        });
+        const tradeBuf = execSync(`echo '${tradeInput}' | ~/.vbt-venv/bin/python3 lib/vbt-paper-trade.py`, { timeout: 30000, maxBuffer: 1024 * 128, shell: "/bin/bash" });
+        const trade = JSON.parse(tradeBuf.toString());
+
+        if (trade.ok) {
+          text += `\n📝 模拟开仓 (${trade.symbol} ${trade.direction}):`;
+          text += `\n入场 $${trade.entry_price} | ATR ${trade.atr} (${trade.atr_pct})`;
+          text += `\n止损 $${trade.sl_price} (${trade.sl_pct}, 2×ATR) | 止盈 $${trade.tp_price} (${trade.tp_pct}, 4×ATR)`;
+          text += `\n仓位 ${trade.position_size}张 ≈ $${trade.amount} | 最大亏损 $${trade.max_loss} | RR 1:${trade.risk_reward}`;
+          text += `\n24h回测: ${trade.backtest_24h === "hit_tp" ? "✅ 触达止盈" : trade.backtest_24h === "hit_sl" ? "❌ 触发止损" : "⏳ 持仓中"}`;
+          text += `\n⚠️ 这是模拟交易。实盘需绑定 OKX API Key。`;
+
+          cards.push({
+            type: "signal",
+            items: [{
+              symbol: trade.symbol, direction: trade.direction,
+              entry: `$${trade.entry_price}`, tp: `$${trade.tp_price}`, sl: `$${trade.sl_price}`,
+              rr: `1:${trade.risk_reward}`, strategy: `${hurst < 0.45 ? "布林带均值回归" : "EMA趋势"}`,
+            }],
+          });
+        } else {
+          text += `\n模拟交易失败: ${trade.error}`;
+        }
+      } catch (e: any) { text += `\n模拟交易暂不可用: ${String(e).slice(0, 80)}`; }
+    }
+
+    // ═══ Positions (MCP) ═══
+    if (/持仓|position|仓位.*我的/i.test(userMsg)) {
+      try {
+        const pos = await mcp("/agent/positions");
+        if (pos && Array.isArray((pos as any).positions) && (pos as any).positions.length > 0) {
+          const items = (pos as any).positions.map((p: any) => ({
+            symbol: p.symbol, side: p.side || "long", size: `${p.size || "?"}张`, entry: `$${p.entry || "?"}`, pnl: `${p.pnl >= 0 ? "+" : ""}$${p.pnl || 0}`,
+          }));
+          cards.push({ type: "positions", items });
+          text += `\n持仓: ${items.map((p: any) => `${p.symbol} ${p.side} ${p.size} @ ${p.entry} PnL ${p.pnl}`).join(" | ")}`;
+        } else {
+          text += `\n当前无持仓`;
+        }
+      } catch { /* MCP offline */ }
+    }
+    // ═══ VBT Pro 回测 ═══
+    if (intentSet.has("strategy") || /回测|backtest|验证|历史/i.test(userMsg)) {
+      const symMatch = userMsg.match(/BTC|ETH|SOL|DOGE|XRP|BNB|ADA/i);
+      const btSymbol = symMatch ? `${symMatch[0]}/USDT:USDT` : "BTC/USDT:USDT";
+      const stratMatch = userMsg.match(/布林|bollinger|均值回归|ema|金叉|死叉|支撑狙击|pivot/i);
+      const btStrategy = stratMatch ? (stratMatch[0].match(/布林|bollinger|均值回归/) ? "bollinger" : "ema") : "bollinger";
+
+      try {
+        const btInput = JSON.stringify({ strategy: btStrategy, symbol: btSymbol, timeframe: "1h", limit: 500 });
+        const btBuf = execSync(`~/.vbt-venv/bin/python3 lib/vbt-backtest.py '${btInput}'`, { timeout: 60000, maxBuffer: 1024 * 1024 });
+        const btResult = JSON.parse(btBuf.toString());
+        if (btResult.ok) {
+          cards.push({
+            type: "backtest",
+            symbol: btResult.symbol,
+            strategy: btResult.strategy,
+            return_pct: btResult.return_pct,
+            win_rate: btResult.win_rate,
+            trades: btResult.trades,
+            sharpe: btResult.sharpe,
+          });
+          text += `\nVBT Pro 回测 (${btResult.symbol} ${btResult.strategy} ${btResult.timeframe}):`;
+          text += `\n收益 ${btResult.return_pct} | 胜率 ${btResult.win_rate} | 夏普 ${btResult.sharpe} | ${btResult.trades}笔交易 | 最大回撤 ${btResult.max_dd}`;
+        }
+      } catch (e: any) { text += `\n回测暂时不可用: ${String(e).slice(0, 80)}`; }
+    }
+
     // 策略列表 + 回测
     if (intentSet.has("strategy")) {
       const strategies = await mcp("/agent/strategies");
@@ -362,7 +507,7 @@ async function fetchAgentData(agent: string, userMsg: string, reqHeaders?: Recor
         const bt = await mcp(`/market/backtest?symbol=${btSym}&strategy=h1-bb-regression&days=90&initial_capital=10000`);
         // Backtest is POST in MCP, use GET fallback
         try {
-          const { data: btData } = await safeFetch(`${getMCP()}/market/backtest`, {
+          const { data: btData } = await safeFetch(`${getMCP()}/api/h/v1/market/backtest`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ symbol: btSym, strategy: "h1-bb-regression", days: 90, initial_capital: 10000 }),
@@ -652,16 +797,35 @@ async function fetchAgentData(agent: string, userMsg: string, reqHeaders?: Recor
     }
 
   } else if (agent === "dolphin") {
-
-    if (intentSet.has("wallet") || intentSet.has("transfer")) {
-      const [status, balance] = await Promise.all([mcp("/wallet/status", reqHeaders), mcp("/wallet/balance", reqHeaders)]);
-      const { text: sd, cards: sc } = buildSharedCards(status, undefined, balance);
-      text += sd; cards.push(...sc);
+    // ═══ Wallet status / balance ═══
+    if (intentSet.has("wallet") || intentSet.has("transfer") || /充|提|转|余额|钱包|地址|到账/i.test(userMsg)) {
+      const addrMatch = userMsg.match(/0x[a-fA-F0-9]{40}/)?.[0] || "";
+      if (addrMatch) {
+        const [totalR, detailR] = await Promise.all([
+          okx.getTotalValue(addrMatch, "1"),
+          okx.getAllTokenBalances(addrMatch, "1"),
+        ]);
+        if (totalR.ok && totalR.data?.[0]) {
+          const total = parseFloat(totalR.data[0].totalValue);
+          text += `\n钱包 ${addrMatch.slice(0,6)}...${addrMatch.slice(-4)}: $${total.toFixed(2)}`;
+          const assets = detailR.data?.[0]?.tokenAssets || [];
+          if (assets.length > 0) {
+            text += `\n持仓: ${assets.slice(0,5).map(a => `${a.symbol} ${Number(a.balance).toFixed(4)}`).join(", ")}`;
+          }
+        } else {
+          text += `\n未查到该地址资产`;
+        }
+      } else {
+        text += `\n用户未提供钱包地址。引导用户去钱包Tab查看。`;
+      }
     }
-    if (intentSet.has("strategy") || intentSet.has("campaigns")) {
-      const [strategies, camps] = await Promise.all([mcp("/agent/strategies"), mcp("/boost/campaigns")]);
-      if (strategies?.strategies) text += `\n可用策略: ${strategies.strategies.map((s: { name: string }) => s.name).join(", ")}`;
-      if (camps?.campaigns?.length) text += `\n活动: ${camps.campaigns.map((c: { name: string; status: string }) => `${c.name}(${c.status})`).join(", ")}`;
+
+    // ═══ Strategy / campaign referrals ═══
+    if (/策略|行情|分析|推荐|回测/i.test(userMsg)) {
+      text += `\n💡 策略分析请找「诸葛策略」。想了解链上数据找「链上猎手」。理财配置找「稳盈管家」。`;
+    }
+    if (/活动|奖励|邀请|排行/i.test(userMsg)) {
+      text += `\n💡 活动和奖励相关请找「派奖福星」，或在社区Tab点「排行榜」。`;
     }
 
   } else if (agent === "wealth") {
@@ -686,7 +850,7 @@ async function fetchAgentData(agent: string, userMsg: string, reqHeaders?: Recor
           mcp("/market/analysis/BTC"), mcp("/market/analysis/ETH"),
         ]);
         for (const [sym, d] of [["BTC", btc], ["ETH", eth]] as const) {
-          if (d && !d._error) {
+          if (d && !d._error && !(d as any).error) {
             const t = d.trends?.["4h"] || {};
             const r = d.regime || {};
             text += `\n${sym}: $${Number(d.price || 0).toLocaleString()} | 4h ${t.direction} | HURST ${r.hurst}(${r.state})`;
@@ -748,11 +912,90 @@ async function fetchAgentData(agent: string, userMsg: string, reqHeaders?: Recor
     }
 
   } else if (agent === "reward") {
-    if (intentSet.has("campaigns")) {
-      const camps = await mcp("/boost/campaigns");
-      if (camps?.campaigns?.length) {
-        text = camps.campaigns.map((c: { name: string; status: string }) => `**${c.name}** — ${c.status}`).join("\n");
-      }
+    // ═══ Leaderboard ═══
+    if (/排行|leaderboard|邀请.*排名|谁最多/i.test(userMsg)) {
+      try {
+        const lbRes = await safeFetch(`http://localhost:3000/api/referral`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "leaderboard", limit: 10 }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (lbRes.ok && lbRes.data?.leaderboard?.length) {
+          const top = lbRes.data.leaderboard.slice(0, 5);
+          text += `\n邀请排行榜:`;
+          top.forEach((e: any, i: number) => {
+            text += `\n${i + 1}. ${(e.user_id || "").slice(0, 8)}... 邀请${e.invite_count}人 | 奖励${e.total_rewards} USDT`;
+          });
+        } else {
+          text += `\n暂无排行数据`;
+        }
+      } catch { /* */ }
+    }
+
+    // ═══ Invite code ═══
+    if (/邀请|invite|邀请码|拉人/i.test(userMsg)) {
+      try {
+        const invRes = await safeFetch(`http://localhost:3000/api/referral`, {
+          method: "POST", headers: reqHeaders || { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "generateCode" }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (invRes.ok && invRes.data?.code) {
+          text += `\n你的邀请码: ${invRes.data.code}`;
+        } else if (!invRes.ok || !invRes.data?.code) {
+          text += `\n获取邀请码失败，请先登录`;
+        }
+        const statsRes = await safeFetch(`http://localhost:3000/api/referral`, {
+          method: "POST", headers: reqHeaders || { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "stats" }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (statsRes.ok && statsRes.data?.totalInvites > 0) {
+          text += `\n已邀请 ${statsRes.data.totalInvites} 人 | 累计奖励 ${statsRes.data.totalRewards || 0} USDT`;
+        }
+      } catch { /* */ }
+    }
+
+    // ═══ Campaigns ═══
+    if (intentSet.has("campaigns") || /活动|campaign|比赛/i.test(userMsg)) {
+      try {
+        const campRes = await safeFetch(`http://localhost:3000/api/referral`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "campaigns" }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (campRes.ok && campRes.data?.campaigns?.length) {
+          text += `\n进行中的活动:`;
+          campRes.data.campaigns.forEach((c: any) => {
+            text += `\n- ${c.title}: ${c.description} | 奖励 ${c.reward_amount} ${c.reward_type}`;
+          });
+        } else {
+          text += `\n暂无进行中的活动`;
+        }
+      } catch { /* */ }
+    }
+
+    // ═══ My rewards ═══
+    if (/我的.*奖励|reward|领取|claim|领奖/i.test(userMsg)) {
+      try {
+        const rewRes = await safeFetch(`http://localhost:3000/api/referral`, {
+          method: "POST", headers: reqHeaders || { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "myRewards" }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (rewRes.ok && rewRes.data?.rewards?.length > 0) {
+          const rewards = rewRes.data.rewards;
+          const pending = rewards.filter((r: any) => r.status === "pending");
+          const claimed = rewards.filter((r: any) => r.status === "claimed");
+          text += `\n待领取: ${pending.length}笔`;
+          if (claimed.length > 0) text += ` | 已领取: ${claimed.length}笔`;
+          if (pending.length > 0) {
+            text += `\n${pending.map((r: any) => `${r.type}奖励 ${r.amount}${r.token}`).join(" | ")}`;
+          }
+        } else {
+          text += `\n暂无奖励记录，去参加活动获取奖励！`;
+        }
+      } catch { /* */ }
     }
   }
 
@@ -847,6 +1090,9 @@ export async function POST(req: NextRequest) {
       onchain: "onchain-hunter",
       wealth: "wealth-manager",
       worldcup: "prediction-prophet",
+      zhuge: "zhuge-strategy",
+      reward: "reward-star",
+      dolphin: "dolphin-guide",
     };
     if (kbMap[agent]) {
       system += "\n\n" + loadKB(kbMap[agent]);
@@ -863,13 +1109,21 @@ export async function POST(req: NextRequest) {
       system = `${system}\n\n你之前的策略分析记录（换币种时可复用）：\n${memories}`;
     }
 
-    const dbHistory = getMessages(cid, 20, userId);
+    // ── Sliding Window: keep context within token budget ──
+    const SLIDING_WINDOW_MAX_TOKENS = 8000; // ~32K chars
+    const dbHistory = getMessages(cid, 30, userId);
     const llmMessages: { role: "user" | "assistant"; content: string }[] = [];
-    for (const m of dbHistory) {
-      llmMessages.push({
-        role: m.role === "agent" ? "assistant" : "user",
-        content: m.role === "user" ? cleanHistory(m.content) : m.content,
-      });
+    let totalChars = 0;
+    for (let i = dbHistory.length - 1; i >= 0; i--) {
+      const m = dbHistory[i];
+      const role = m.role === "agent" ? "assistant" as const : "user" as const;
+      const content = m.role === "user" ? cleanHistory(m.content) : m.content;
+      const charCount = role.length + content.length;
+      if (totalChars + charCount > SLIDING_WINDOW_MAX_TOKENS * 4 && llmMessages.length > 2) {
+        break; // Drop oldest messages, keep at least the last 2
+      }
+      totalChars += charCount;
+      llmMessages.unshift({ role, content });
     }
 
     const mcpHeaders = mcpHeadersFromRequest(req);
@@ -974,7 +1228,7 @@ export async function GET(req: NextRequest) {
     const id = url.searchParams.get("id");
     const userId = getUserId(req) || "anonymous";
     if (id) {
-      const msgs = getMessages(id, 100, userId);
+      const msgs = getMessages(id, 30, userId);
       return Response.json({
         conversationId: id,
         messages: msgs.map((m) => ({ role: m.role, content: cleanHistory(m.content) })),
