@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ensureConversation, addMessage, getMessages, getRecentConversations, ensureUser } from "@/lib/db";
+import { ensureConversation, addMessage, getMessages, getRecentConversations, ensureUser, getCampaigns, getUserRewards, getLeaderboard } from "@/lib/db";
 import { rateLimit } from "@/lib/ratelimit";
 import { safeFetch } from "@/lib/fetch";
 import { addMemory, addFacts, searchMemory, extractFacts } from "@/lib/memory";
@@ -169,78 +169,36 @@ function cleanHistory(content: string): string {
 // ── Agent System Prompts — short, focused ──────────────────
 const SYSTEM_PROMPTS: Record<string, string> = {
   zhuge:
-    "你是「诸葛策略」，加密货币量化分析师。\n" +
-    "\n" +
-    "核心规则：\n" +
-    "1. 「===== 数据 =====」里有什么就报什么。没数据就说没有。不准编造数字。\n" +
-    "2. 数据里有 HURST 就按规则给分析：\n" +
-    "   - HURST<0.45 → 震荡市，推荐布林带均值回归，仓位≤5%，止损用2×ATR\n" +
-    "   - HURST>0.55 → 趋势市，推荐EMA顺势，仓位≤10%，止损用突破反向点\n" +
-    "   - 0.45-0.55 → 观望，仓位≤2%\n" +
-    "3. 用户明确要求开仓/执行 → 直接执行并报结果。同时提示风险。\n" +
-    "4. 没有监控功能。没有历史数据。用户问就诚实告知。\n" +
-    "5. 简洁。50字内说完。\n" +
-    "\n" +
-    "能力：OKX CEX行情(HURST/EMA/Pivot)、多币扫描、策略回测。",
+    "诸葛策略。\n" +
+    "不要用「好的」「收到」「根据数据」开头。直接给数据。\n" +
+    "行情查询: 「BTC $73,500 HURST 0.19 震荡 S1 $72K R1 $76K」\n" +
+    "深度分析: 结论→原因→风险→建议\n" +
+    "执行: 结构化预览→等确认\n" +
+    "没数据说暂无。不准编造。不给买卖建议。",
 
   worldcup:
-    "你是「AI预言帝」，Polymarket 预测市场分析师。\n" +
-    "\n" +
-    "核心规则：数据在下文里。有数据就报数据。没数据就说「没数据」，不准编。\n" +
-    "不准做无数据支撑的分析。不准编造概率、交易量、对手分析。\n" +
-    "\n" +
-    "你能做的：\n" +
-    "- 报赔率：数据里有就报，没有就说没有\n" +
-    "- 查分组：知识库里有48队分组\n" +
-    "- 查赛程：知识库里有完整赛程\n" +
-    "- 下单：用户要下单，直接告诉用户用 polymarket-plugin\n" +
-    "\n" +
-    "回答长度：不超过100字，除非数据很多。简洁，不要废话。",
+    "AI预言帝。\n" +
+    "不要用「好的」「收到」开头。直接给数据。\n" +
+    "查询→直接报赔率。分析→结论+优劣势+淘汰赛路径。\n" +
+    "没数据说暂无。不准编造。",
 
   onchain:
-    "你是「链上猎手」，OKX 链上数据专家。\n" +
-    "\n" +
-    "核心规则：数据在下方。有就报，没有就说「没数据」。不准编造任何数字、代币名、分析结论。\n" +
-    "不要替用户做决定。不要长篇大论。能一句话说完就不要两句话。\n" +
-    "\n" +
-    "能力范围：聪明钱信号、代币安全分析、新币发现、地址查资产、Gas查询。\n" +
-    "涉及充提币/兑换 → 引导小海豚。涉及投资建议 → 引导诸葛策略。",
+    "链上猎手。数据优先。禁止「好的」「收到」开头。\n" +
+    "第一行就是数据。不准写「正在扫描」「根据数据分析」之类的废话。\n" +
+    "没数据说暂无。不准编造。充提币找小海豚。",
 
   dolphin:
-    "你是「小海豚」，平台全能向导。语气温暖耐心，像邻家姐姐。\n" +
-    "\n" +
-    "核心规则：不准编造。没数据就说「我查不到」。涉及充提币/兑换→引导去钱包Tab操作。\n" +
-    "涉及投资建议→引导去对应Agent（链上猎手/诸葛策略/稳盈管家）。\n" +
-    "\n" +
-    "你能帮用户:\n" +
-    "- 平台导航：哪个Agent干什么、功能在哪里\n" +
-    "- 充提币指引：引导去钱包Tab操作（不要替用户操作）\n" +
-    "- 钱包安全科普\n" +
-    "- 新手引导：怎么开始用这个App\n" +
-    "\n" +
-    "简洁。50字内说完。",
+    "小海豚。\n" +
+    "禁止「好的」「你好」「嗨」开头。直接说操作步骤。\n" +
+    "充提币→引导去钱包Tab。其他问题→路由到对应Agent。",
 
   wealth:
-    "你是「稳盈管家」，资产配置顾问。\n" +
-    "\n" +
-    "核心规则：数据在下方。有就报，没有就说「没数据」。不准编造任何数字、APY、TVL。\n" +
-    "不要替用户做投资决定。不要长篇大论。简洁直接。\n" +
-    "\n" +
-    "能力：查 DeFi 理财 APY、查持仓配置、查市场行情。",
+    "稳盈管家。数据优先。禁止「好的」「收到」开头。\n" +
+    "第一行就是产品名+APY。不准写「这是当前可用的」之类的废话。",
 
   reward:
-    "你是「派奖福星」，平台活动与奖励助手。热情大方，像过年发红包的亲戚。\n" +
-    "\n" +
-    "规则：数据在下方。有就报，没数据就说「暂无活动」。不准编造。\n" +
-    "\n" +
-    "你能帮用户：\n" +
-    "- 获取邀请码、查看邀请统计\n" +
-    "- 查排行榜（邀请人数排名）\n" +
-    "- 查看进行中的活动\n" +
-    "- 查询自己的奖励记录\n" +
-    "- 领取待领取的奖励\n" +
-    "\n" +
-    "简洁。50字内说完。",
+    "派奖福星。\n" +
+    "有活动→直接报活动名+奖励。没活动→暂无。",
 };
 
 const WC_KNOWLEDGE = [
@@ -410,45 +368,33 @@ async function fetchAgentData(agent: string, userMsg: string, reqHeaders?: Recor
       } catch { /* CEX unavailable */ }
     }
 
-    // ═══ Paper Trading — scan → signal → execute ═══
-    if (/开仓|下单|执行|买入.*[Uu]|做[多空]|paper|模拟开仓|试一单/i.test(userMsg)) {
+    // ═══ Trading — paper (default) or real CEX ═══
+    if (/开仓|下单|执行|买入.*[Uu]|做[多空]|试一单/i.test(userMsg)) {
       const tradeSym = userMsg.match(/BTC|ETH|SOL|DOGE|XRP/i)?.[0] || "BTC";
       const isLong = /做多|买[入多]|long/i.test(userMsg) || !/做空|卖[出空]|short/i.test(userMsg);
       const amtMatch = userMsg.match(/(\d+)\s*[Uu]/);
       const amount = amtMatch ? parseInt(amtMatch[1]) : 100;
+      const isReal = /实盘|真实|真金|live|real/i.test(userMsg);
 
-      // Get current HURST to determine strategy
-      const currentData = mcpData?.[tradeSym];
-      const hurst = currentData?.regime?.hurst || 0.5;
-
-      try {
-        // VBT computes ATR-based SL/TP from real market data
-        const tradeInput = JSON.stringify({
-          symbol: tradeSym, direction: isLong ? "long" : "short", amount,
-        });
-        const tradeBuf = execSync(`echo '${tradeInput}' | ~/.vbt-venv/bin/python3 lib/vbt-paper-trade.py`, { timeout: 30000, maxBuffer: 1024 * 128, shell: "/bin/bash" });
-        const trade = JSON.parse(tradeBuf.toString());
-
-        if (trade.ok) {
-          text += `\n📝 模拟开仓 (${trade.symbol} ${trade.direction}):`;
-          text += `\n入场 $${trade.entry_price} | ATR ${trade.atr} (${trade.atr_pct})`;
-          text += `\n止损 $${trade.sl_price} (${trade.sl_pct}, 2×ATR) | 止盈 $${trade.tp_price} (${trade.tp_pct}, 4×ATR)`;
-          text += `\n仓位 ${trade.position_size}张 ≈ $${trade.amount} | 最大亏损 $${trade.max_loss} | RR 1:${trade.risk_reward}`;
-          text += `\n24h回测: ${trade.backtest_24h === "hit_tp" ? "✅ 触达止盈" : trade.backtest_24h === "hit_sl" ? "❌ 触发止损" : "⏳ 持仓中"}`;
-          text += `\n⚠️ 这是模拟交易。实盘需绑定 OKX API Key。`;
-
-          cards.push({
-            type: "signal",
-            items: [{
-              symbol: trade.symbol, direction: trade.direction,
-              entry: `$${trade.entry_price}`, tp: `$${trade.tp_price}`, sl: `$${trade.sl_price}`,
-              rr: `1:${trade.risk_reward}`, strategy: `${hurst < 0.45 ? "布林带均值回归" : "EMA趋势"}`,
-            }],
-          });
-        } else {
-          text += `\n模拟交易失败: ${trade.error}`;
-        }
-      } catch (e: any) { text += `\n模拟交易暂不可用: ${String(e).slice(0, 80)}`; }
+      if (isReal) {
+        try {
+          const tkRes = await safeFetch(`https://www.okx.com/api/v5/market/ticker?instId=${tradeSym}-USDT`, { signal: AbortSignal.timeout(5000) });
+          const price = parseFloat(tkRes.data?.data?.[0]?.last || "0");
+          const sz = (amount / price).toFixed(6);
+          text += `\n🔴 实盘 ${isLong ? "买入" : "卖出"} ${tradeSym}: $${price} × ${sz} = $${amount}`;
+          text += `\n⚠️ 确认执行回复「确认」。回复其他取消。`;
+        } catch { text += `\n实盘交易暂不可用`; }
+      } else {
+        try {
+          const tradeInput = JSON.stringify({ symbol: tradeSym, direction: isLong ? "long" : "short", amount });
+          const tradeBuf = execSync(`echo '${tradeInput}' | python3 lib/vbt-paper-trade.py`, { timeout: 30000, maxBuffer: 1024 * 128, shell: "/bin/bash" });
+          const trade = JSON.parse(tradeBuf.toString());
+          if (trade.ok) {
+            text += `\n📝 模拟 ${trade.symbol} ${trade.direction} $${amount}: 入场 $${trade.entry_price} | 止损 $${trade.sl_price} | 止盈 $${trade.tp_price}`;
+            text += `\n💡 说「实盘开仓」切换真实交易`;
+          }
+        } catch { text += `\n模拟交易暂不可用`; }
+      }
     }
 
     // ═══ Positions (MCP) ═══
@@ -934,68 +880,48 @@ async function fetchAgentData(agent: string, userMsg: string, reqHeaders?: Recor
 
     // ═══ Invite code ═══
     if (/邀请|invite|邀请码|拉人/i.test(userMsg)) {
+      // Use referral API (not DB functions — avoids TS import issue)
       try {
-        const invRes = await safeFetch(`http://localhost:3000/api/referral`, {
-          method: "POST", headers: reqHeaders || { "Content-Type": "application/json" },
+        const invRes = await safeFetch(`${getMCP()}/api/h/v1/wallet/referral`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "generateCode" }),
           signal: AbortSignal.timeout(5000),
         });
         if (invRes.ok && invRes.data?.code) {
           text += `\n你的邀请码: ${invRes.data.code}`;
-        } else if (!invRes.ok || !invRes.data?.code) {
-          text += `\n获取邀请码失败，请先登录`;
+        } else {
+          text += `\n请先登录，在「排行榜」页面获取邀请码`;
         }
-        const statsRes = await safeFetch(`http://localhost:3000/api/referral`, {
-          method: "POST", headers: reqHeaders || { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "stats" }),
-          signal: AbortSignal.timeout(5000),
-        });
-        if (statsRes.ok && statsRes.data?.totalInvites > 0) {
-          text += `\n已邀请 ${statsRes.data.totalInvites} 人 | 累计奖励 ${statsRes.data.totalRewards || 0} USDT`;
-        }
-      } catch { /* */ }
+      } catch { text += `\n获取邀请码请前往「排行榜」页面`; }
     }
 
     // ═══ Campaigns ═══
     if (intentSet.has("campaigns") || /活动|campaign|比赛/i.test(userMsg)) {
-      try {
-        const campRes = await safeFetch(`http://localhost:3000/api/referral`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "campaigns" }),
-          signal: AbortSignal.timeout(5000),
+      const camps = getCampaigns();
+      if (camps.length > 0) {
+        text += `\n进行中的活动:`;
+        camps.forEach((c: any) => {
+          text += `\n- ${c.title}: ${c.description} | 奖励 ${c.reward_amount} ${c.reward_type}`;
         });
-        if (campRes.ok && campRes.data?.campaigns?.length) {
-          text += `\n进行中的活动:`;
-          campRes.data.campaigns.forEach((c: any) => {
-            text += `\n- ${c.title}: ${c.description} | 奖励 ${c.reward_amount} ${c.reward_type}`;
-          });
-        } else {
-          text += `\n暂无进行中的活动`;
-        }
-      } catch { /* */ }
+      } else {
+        text += `\n暂无进行中的活动`;
+      }
     }
 
     // ═══ My rewards ═══
     if (/我的.*奖励|reward|领取|claim|领奖/i.test(userMsg)) {
-      try {
-        const rewRes = await safeFetch(`http://localhost:3000/api/referral`, {
-          method: "POST", headers: reqHeaders || { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "myRewards" }),
-          signal: AbortSignal.timeout(5000),
-        });
-        if (rewRes.ok && rewRes.data?.rewards?.length > 0) {
-          const rewards = rewRes.data.rewards;
-          const pending = rewards.filter((r: any) => r.status === "pending");
-          const claimed = rewards.filter((r: any) => r.status === "claimed");
-          text += `\n待领取: ${pending.length}笔`;
-          if (claimed.length > 0) text += ` | 已领取: ${claimed.length}笔`;
-          if (pending.length > 0) {
-            text += `\n${pending.map((r: any) => `${r.type}奖励 ${r.amount}${r.token}`).join(" | ")}`;
-          }
-        } else {
-          text += `\n暂无奖励记录，去参加活动获取奖励！`;
+      const rewards = getUserRewards(uid);
+      const pending = rewards.filter((r: any) => r.status === "pending");
+      const claimed = rewards.filter((r: any) => r.status === "claimed");
+      if (rewards.length > 0) {
+        text += `\n待领取: ${pending.length}笔`;
+        if (claimed.length > 0) text += ` | 已领取: ${claimed.length}笔`;
+        if (pending.length > 0) {
+          text += `\n${pending.map((r: any) => `${r.type}奖励 ${r.amount}${r.token}`).join(" | ")}`;
         }
-      } catch { /* */ }
+      } else {
+        text += `\n暂无奖励记录，去参加活动获取奖励！`;
+      }
     }
   }
 

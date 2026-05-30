@@ -479,6 +479,42 @@ const okx = {
     if (limit) qs.set("limit", limit);
     return okxGet<OKXTopTrader[]>(`/api/v6/dex/market/token/top-trader?${qs}`);
   },
+  // ── CEX Trading (spot) ────────────────────────
+
+  spotOrder(params: {
+    instId: string;      // e.g. "BTC-USDT"
+    tdMode: "cash";       // cash = spot
+    side: "buy" | "sell";
+    ordType: "market" | "limit";
+    sz: string;           // quantity
+    px?: string;          // price (limit orders)
+  }) {
+    const CEX = "https://www.okx.com";
+    const KEY = process.env.OKX_CEX_API_KEY || "";
+    const SECRET = process.env.OKX_CEX_SECRET_KEY || "";
+    const PASS = process.env.OKX_CEX_PASSPHRASE || "";
+    const ts = new Date().toISOString();
+    const body = JSON.stringify(params);
+    const sign = createHmac("sha256", SECRET).update(ts + "POST" + "/api/v5/trade/order" + body).digest("base64");
+    return fetch(`${CEX}/api/v5/trade/order`, {
+      method: "POST",
+      headers: { "OK-ACCESS-KEY": KEY, "OK-ACCESS-SIGN": sign, "OK-ACCESS-PASSPHRASE": PASS, "OK-ACCESS-TIMESTAMP": ts, "Content-Type": "application/json" },
+      body,
+    }).then(r => r.json());
+  },
+
+  spotBalance() {
+    const CEX = "https://www.okx.com";
+    const KEY = process.env.OKX_CEX_API_KEY || "";
+    const SECRET = process.env.OKX_CEX_SECRET_KEY || "";
+    const PASS = process.env.OKX_CEX_PASSPHRASE || "";
+    const ts = new Date().toISOString();
+    const path = "/api/v5/account/balance";
+    const sign = createHmac("sha256", SECRET).update(ts + "GET" + path).digest("base64");
+    return fetch(`${CEX}${path}`, {
+      headers: { "OK-ACCESS-KEY": KEY, "OK-ACCESS-SIGN": sign, "OK-ACCESS-PASSPHRASE": PASS, "OK-ACCESS-TIMESTAMP": ts },
+    }).then(r => r.json());
+  },
 };
 
 export default okx;
