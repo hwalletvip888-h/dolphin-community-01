@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { 
   ChevronLeft, ChevronRight, MessageSquare, Send, LayoutGrid, Users,
   Plus, Zap, Sparkles, Brain,
@@ -692,18 +694,18 @@ export default function App() {
   };
 
   // ── Safe rich-text renderer (no dangerouslySetInnerHTML) ──
-  function RichText({ text }: { text: string }) {
-    const segments = text.split(/(\*\*.*?\*\*)/);
+  function MarkdownMessage({ content }: { content: string }) {
     return (
-      <p className="text-[14px] leading-relaxed whitespace-pre-wrap">
-        {segments.map((seg, i) => {
-          if (seg.startsWith("**") && seg.endsWith("**")) {
-            return <strong key={i}>{seg.slice(2, -2)}</strong>;
-          }
-          return <span key={i}>{seg}</span>;
-        })}
-      </p>
+      <div className="prose prose-invert max-w-none prose-sm prose-headings:text-white prose-p:text-white/90 prose-strong:text-white prose-code:text-[#F7D56D] prose-code:bg-white/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-li:text-white/80 prose-a:text-[#F7D56D] prose-a:no-underline hover:prose-a:underline prose-table:border-white/10 prose-th:border-white/10 prose-td:border-white/10 prose-hr:border-white/10 prose-blockquote:border-l-[#F7D56D] prose-blockquote:text-white/60">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          {content}
+        </ReactMarkdown>
+      </div>
     );
+  }
+
+  function RichText({ text }: { text: string }) {
+    return <MarkdownMessage content={text} />;
   }
 
   // ==========================================

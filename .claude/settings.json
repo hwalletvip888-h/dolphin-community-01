@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(git *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(cd *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(sed *)",
+      "Bash(mkdir *)",
+      "Bash(export *)",
+      "Bash(echo *)",
+      "Bash(python3 *)",
+      "Bash(gh *)",
+      "Bash(open *)",
+      "Bash(chmod *)",
+      "Bash(scp *)",
+      "Bash(tar *)",
+      "Bash(wc *)",
+      "Bash(head *)",
+      "Bash(sleep *)",
+      "Bash(lsof *)",
+      "Bash(xcrun *)",
+      "Bash(osascript *)",
+      "Bash(pwd *)",
+      "Bash(which *)",
+      "Bash(file *)",
+      "Bash(dig *)",
+      "Bash(ssh *)",
+      "Bash(sshpass *)",
+      "Bash(onchainos *)",
+      "Bash(okx *)",
+      "Bash(for *)",
+      "WebSearch",
+      "WebFetch"
+    ]
+  }
+}
