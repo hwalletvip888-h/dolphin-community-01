@@ -22,15 +22,19 @@ const MOCK: ChatMsg[] = [
   { id: "5", user: "CryptoWhale", type: "text", content: "链上猎手发现的地址今天又拉了 15%", time: "25m" },
 ];
 
-const CONTRACT_POS = [
-  { id: "c1", symbol: "BTC/USDT", side: "多", leverage: "10x", usdValue: "$4,360", entryPrice: "87,200", markPrice: "87,450", liqPrice: "78,480", unrealizedPnl: "+$12.50", pnlPct: "+2.9%", strategy: "H1 布林带反转", agent: "诸葛策略" },
-  { id: "c2", symbol: "ETH/USDT", side: "空", leverage: "5x", usdValue: "$2,075", entryPrice: "4,150", markPrice: "4,120", liqPrice: "4,980", unrealizedPnl: "+$15.00", pnlPct: "+3.6%", strategy: "EMA 金叉趋势", agent: "诸葛策略" },
+const ZHUGE_POS = [
+  { id: "c1", symbol: "BTC/USDT", side: "多", leverage: "10x", usdValue: "$4,360", entryPrice: "87,200", markPrice: "87,450", liqPrice: "78,480", pnl: "+$12.50", pnlPct: "+2.9%", strategy: "H1 布林带反转" },
+  { id: "c2", symbol: "ETH/USDT", side: "空", leverage: "5x", usdValue: "$2,075", entryPrice: "4,150", markPrice: "4,120", liqPrice: "4,980", pnl: "+$15.00", pnlPct: "+3.6%", strategy: "EMA 金叉趋势" },
 ];
 
-const EARN_POS = [
-  { id: "e1", token: "PEPE", chain: "Ethereum", amount: "120M", buyPrice: "$0.00118", currentPrice: "$0.00215", usdValue: "$258.00", cost: "$141.60", pnl: "+$116.40", pnlPct: "+82.2%", signal: "鲸鱼建仓", time: "2天前" },
-  { id: "e2", token: "WIF", chain: "Solana", amount: "500", buyPrice: "$2.45", currentPrice: "$2.98", usdValue: "$1,490.00", cost: "$1,225.00", pnl: "+$265.00", pnlPct: "+21.6%", signal: "聪明钱买入", time: "5天前" },
-  { id: "e3", token: "DEGEN", chain: "Base", amount: "8,000", buyPrice: "$0.052", currentPrice: "$0.038", usdValue: "$304.00", cost: "$416.00", pnl: "-$112.00", pnlPct: "-26.9%", signal: "大额转账", time: "3天前" },
+const ONCHAIN_POS = [
+  { id: "e1", symbol: "PEPE", chain: "Ethereum", amount: "120M", buyPrice: "$0.00118", currentPrice: "$0.00215", usdValue: "$258.00", pnl: "+$116.40", pnlPct: "+82.2%", signal: "鲸鱼建仓", time: "2天前" },
+  { id: "e2", symbol: "WIF", chain: "Solana", amount: "500", buyPrice: "$2.45", currentPrice: "$2.98", usdValue: "$1,490.00", pnl: "+$265.00", pnlPct: "+21.6%", signal: "聪明钱买入", time: "5天前" },
+];
+
+const WEALTH_POS = [
+  { id: "w1", symbol: "USDC", protocol: "AAVE", chain: "Ethereum", usdValue: "$800.00", apy: "8.2%", earned: "+$3.20", days: 12, type: "借贷" },
+  { id: "w2", symbol: "stETH", protocol: "Lido", chain: "Ethereum", usdValue: "$1,250.00", apy: "3.8%", earned: "+$12.50", days: 45, type: "质押" },
 ];
 
 export default function CommunityScreen() {
@@ -42,12 +46,15 @@ export default function CommunityScreen() {
   const { level } = useAuth();
   const listRef = useRef<FlatList<ChatMsg>>(null);
   // Mock positions for "current positions" tab
-  const myContractPos = CONTRACT_POS;
-  const myEarnPos = EARN_POS;
+  const myZhuge = ZHUGE_POS;
+  const myOnchain = ONCHAIN_POS;
+  const myWealth = WEALTH_POS;
 
-  const totalContract = myContractPos.reduce((s, p) => s + parseFloat(p.usdValue.replace("$","").replace(",","")), 0);
-  const totalEarn = myEarnPos.reduce((s, p) => s + parseFloat(p.usdValue.replace("$","").replace(",","")), 0);
-  const totalPnl = myContractPos.reduce((s, p) => s + parseFloat(p.unrealizedPnl.replace("$","").replace("+","")), 0) + myEarnPos.reduce((s, p) => s + parseFloat(p.pnl.replace("$","").replace("+","").replace("-",""))*(p.pnl.startsWith("-")?-1:1), 0);
+  const val = (s: string) => parseFloat(s.replace(/[$,]/g, ""));
+  const totalZhuge = myZhuge.reduce((s, p) => s + val(p.usdValue), 0);
+  const totalOnchain = myOnchain.reduce((s, p) => s + val(p.usdValue), 0);
+  const totalWealth = myWealth.reduce((s, p) => s + val(p.usdValue), 0);
+  const totalPnl = myZhuge.reduce((s, p) => s + val(p.pnl), 0) + myOnchain.reduce((s, p) => s + val(p.pnl), 0);
 
   const addMsg = (msg: ChatMsg) => { setMsgs((p) => [msg, ...p]); setShowMenu(false); setMenuPage("main"); };
 
@@ -65,7 +72,7 @@ export default function CommunityScreen() {
     addMsg({ id: Date.now().toString(), user: "我", type: "text", content: t, time: "刚刚", isMe: true }); setInput("");
   };
 
-  const sharePosition = (pos: typeof CONTRACT_POS[0]) => {
+  const sharePosition = (pos: typeof ZHUGE_POS[0]) => {
     addMsg({ id: Date.now().toString(), user: "我", type: "position", time: "刚刚", isMe: true, position: pos });
   };
 
@@ -98,17 +105,17 @@ export default function CommunityScreen() {
         {/* Summary */}
         <View style={ps.summaryCard}>
           <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-            <View style={{ alignItems: "center" }}><Text style={ps.sumVal}>${totalContract.toLocaleString()}</Text><Text style={ps.sumLabel}>合约策略</Text></View>
+            <View style={{ alignItems: "center" }}><Text style={ps.sumVal}>${totalZhuge.toLocaleString()}</Text><Text style={ps.sumLabel}>诸葛策略</Text></View>
             <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.06)" }} />
-            <View style={{ alignItems: "center" }}><Text style={ps.sumVal}>${totalEarn.toLocaleString()}</Text><Text style={ps.sumLabel}>链上赚币</Text></View>
+            <View style={{ alignItems: "center" }}><Text style={ps.sumVal}>${totalOnchain.toLocaleString()}</Text><Text style={ps.sumLabel}>链上猎手</Text></View>
             <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.06)" }} />
-            <View style={{ alignItems: "center" }}><Text style={[ps.sumVal, { color: totalPnl >= 0 ? "#34D399" : "#FB923C" }]}>{totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)}</Text><Text style={ps.sumLabel}>总盈亏</Text></View>
+            <View style={{ alignItems: "center" }}><Text style={ps.sumVal}>${totalWealth.toLocaleString()}</Text><Text style={ps.sumLabel}>稳盈管家</Text></View>
           </View>
         </View>
 
-        {/* Contract positions */}
-        <Text style={ps.sectionTitle}>📊 合约策略仓位</Text>
-        {myContractPos.map((pos) => (
+        {/* 诸葛策略仓位 */}
+        <Text style={ps.sectionTitle}>📊 诸葛策略仓位</Text>
+        {myZhuge.map((pos) => (
           <View key={pos.id} style={ps.card}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -116,9 +123,7 @@ export default function CommunityScreen() {
                 <Text style={[ps.side, { color: pos.side === "多" ? "#34D399" : "#FB923C" }]}>{pos.side}</Text>
                 <Text style={ps.lev}>{pos.leverage}</Text>
               </View>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Text style={[ps.pnl, { color: pos.unrealizedPnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{pos.unrealizedPnl} ({pos.pnlPct})</Text>
-              </View>
+              <Text style={[ps.pnl, { color: pos.pnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{pos.pnl} ({pos.pnlPct})</Text>
             </View>
             <View style={ps.detailRow}>
               <View style={ps.detail}><Text style={ps.dLabel}>仓位价值</Text><Text style={ps.dVal}>{pos.usdValue}</Text></View>
@@ -126,20 +131,18 @@ export default function CommunityScreen() {
               <View style={ps.detail}><Text style={ps.dLabel}>标记价</Text><Text style={ps.dVal}>${pos.markPrice}</Text></View>
               <View style={ps.detail}><Text style={ps.dLabel}>强平</Text><Text style={[ps.dVal, { color: "#FB923C" }]}>${pos.liqPrice}</Text></View>
             </View>
-            <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 6 }}>策略: {pos.strategy} · {pos.agent}</Text>
-            <TouchableOpacity style={ps.closeBtn} activeOpacity={0.7}>
-              <Text style={ps.closeBtnText}>平仓</Text>
-            </TouchableOpacity>
+            <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 6 }}>策略: {pos.strategy}</Text>
+            <TouchableOpacity style={ps.closeBtn} activeOpacity={0.7}><Text style={ps.closeBtnText}>平仓</Text></TouchableOpacity>
           </View>
         ))}
 
-        {/* Earn positions — onchain signals */}
-        <Text style={[ps.sectionTitle, { marginTop: 8 }]}>💰 链上猎手信号仓位</Text>
-        {myEarnPos.map((pos) => (
+        {/* 链上猎手仓位 */}
+        <Text style={[ps.sectionTitle, { marginTop: 8 }]}>🔍 链上猎手仓位</Text>
+        {myOnchain.map((pos) => (
           <View key={pos.id} style={ps.card}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Text style={ps.symbol}>{pos.token}</Text>
+                <Text style={ps.symbol}>{pos.symbol}</Text>
                 <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", backgroundColor: "rgba(255,255,255,0.04)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 6 }}>{pos.chain}</Text>
               </View>
               <Text style={{ fontSize: 10, color: "rgba(167,139,250,0.6)" }}>{pos.signal} · {pos.time}</Text>
@@ -152,11 +155,28 @@ export default function CommunityScreen() {
               <View style={ps.detail}><Text style={ps.dLabel}>数量</Text><Text style={ps.dVal}>{pos.amount}</Text></View>
               <View style={ps.detail}><Text style={ps.dLabel}>买入价</Text><Text style={ps.dVal}>{pos.buyPrice}</Text></View>
               <View style={ps.detail}><Text style={ps.dLabel}>现价</Text><Text style={ps.dVal}>{pos.currentPrice}</Text></View>
-              <View style={ps.detail}><Text style={ps.dLabel}>成本</Text><Text style={ps.dVal}>{pos.cost}</Text></View>
             </View>
-            <TouchableOpacity style={[ps.closeBtn, { backgroundColor: "rgba(239,68,68,0.08)", borderColor: "rgba(239,68,68,0.2)" }]} activeOpacity={0.7}>
-              <Text style={ps.closeBtnText}>卖出</Text>
-            </TouchableOpacity>
+            <TouchableOpacity style={[ps.closeBtn, { backgroundColor: "rgba(239,68,68,0.08)", borderColor: "rgba(239,68,68,0.2)" }]} activeOpacity={0.7}><Text style={ps.closeBtnText}>卖出</Text></TouchableOpacity>
+          </View>
+        ))}
+
+        {/* 稳盈管家仓位 */}
+        <Text style={[ps.sectionTitle, { marginTop: 8 }]}>💎 稳盈管家仓位</Text>
+        {myWealth.map((pos) => (
+          <View key={pos.id} style={ps.card}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+              <View>
+                <Text style={ps.symbol}>{pos.symbol}</Text>
+                <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>{pos.protocol} · {pos.chain} · {pos.type}</Text>
+              </View>
+              <Text style={ps.usdVal}>{pos.usdValue}</Text>
+            </View>
+            <View style={ps.detailRow}>
+              <View style={ps.detail}><Text style={ps.dLabel}>年化</Text><Text style={[ps.dVal, { color: "#34D399" }]}>{pos.apy}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>已赚</Text><Text style={[ps.dVal, { color: "#34D399" }]}>{pos.earned}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>天数</Text><Text style={ps.dVal}>{pos.days}天</Text></View>
+            </View>
+            <TouchableOpacity style={[ps.closeBtn, { backgroundColor: "rgba(251,146,60,0.08)", borderColor: "rgba(251,146,60,0.2)" }]} activeOpacity={0.7}><Text style={[ps.closeBtnText, { color: "#FB923C" }]}>赎回</Text></TouchableOpacity>
           </View>
         ))}
       </ScrollView>
@@ -192,14 +212,14 @@ export default function CommunityScreen() {
             ) : (
               <>
                 <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>合约持仓</Text>
-                {myContractPos.map((pos, i) => (
+                {myZhuge.map((pos, i) => (
                   <TouchableOpacity key={"c"+i} style={m.posRow} onPress={() => sharePosition(pos)}>
                     <View>
                       <Text style={m.posSym}>{pos.symbol}</Text>
                       <Text style={{ fontSize: 12, color: pos.side === "多" ? "#34D399" : "#FB923C", fontWeight: "600" }}>{pos.side} {pos.leverage}</Text>
                     </View>
                     <View style={{ alignItems: "flex-end" }}>
-                      <Text style={{ fontSize: 15, fontWeight: "700", color: pos.unrealizedPnl.startsWith("+") ? "#34D399" : "#FB923C" }}>{pos.unrealizedPnl}</Text>
+                      <Text style={{ fontSize: 15, fontWeight: "700", color: pos.pnl.startsWith("+") ? "#34D399" : "#FB923C" }}>{pos.pnl}</Text>
                       <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{pos.pnlPct}</Text>
                     </View>
                   </TouchableOpacity>
