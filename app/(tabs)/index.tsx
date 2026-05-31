@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
-import { Sparkles, TrendingUp, Globe, Trophy, BarChart3, Grid3X3, Coins, Shield, Wallet, Eye, Zap } from "lucide-react-native";
+import { BarChart3, Grid3X3, Coins, Shield, Wallet, Eye, Zap, BookOpen, FileText, Gift, MessageCircle } from "lucide-react-native";
 import { AGENTS } from "@/src/data/agents";
 import { useAuth } from "@/src/stores/auth";
 
@@ -13,11 +13,11 @@ const CAROUSEL = [
   { icon: Coins, title: "链上赚币机会", subtitle: "发现稳定收益协议", color: "#34D399", bg: "rgba(52,211,153,0.08)", route: "/chat/onchain" },
 ];
 
-const QUICK_ACTIONS = [
-  { icon: TrendingUp, label: "行情分析", desc: "BTC/ETH/SOL 实时", route: "/chat/zhuge" },
-  { icon: Sparkles, label: "策略生成", desc: "AI 量化策略", route: "/chat/zhuge" },
-  { icon: Globe, label: "链上机会", desc: "聪明钱追踪", route: "/chat/onchain" },
-  { icon: Trophy, label: "世界杯", desc: "竞猜 & 预测", route: "/chat/worldcup" },
+const QUICK_LINKS = [
+  { icon: BookOpen, label: "新人指南", desc: "快速上手 Web3", route: "/chat/dolphin" },
+  { icon: FileText, label: "平台规则", desc: "了解社区规范", route: "/chat/dolphin" },
+  { icon: Gift, label: "最新活动", desc: "空投 & 奖励", route: "/chat/reward" },
+  { icon: MessageCircle, label: "投诉建议", desc: "帮助改进产品", route: "/chat/dolphin" },
 ];
 
 export default function HomeScreen() {
@@ -219,10 +219,10 @@ export default function HomeScreen() {
         })}
       </View>
 
-      {/* ── Quick actions ── */}
-      <Text style={s.sectionTitle}>快捷功能</Text>
+      {/* ── Quick links ── */}
+      <Text style={s.sectionTitle}>服务中心</Text>
       <View style={s.actions}>
-        {QUICK_ACTIONS.map((a) => (
+        {QUICK_LINKS.map((a) => (
           <TouchableOpacity
             key={a.label}
             style={s.actionCard}
