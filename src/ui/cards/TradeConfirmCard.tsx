@@ -8,8 +8,9 @@ interface TradeParams {
   amount?: string;
   entryPrice?: string;
   stopLoss?: string;
-  trailDistance?: string;  // trailing stop distance after activation
-  trailActivate?: string;  // when to activate trailing
+  trailDistance?: string;
+  trailActivate?: string;
+  maxLoss?: number;
 }
 
 export function TradeConfirmCard({
@@ -22,14 +23,10 @@ export function TradeConfirmCard({
   onCancel: () => void;
 }) {
   const {
-    symbol = "BTC/USDT",
-    direction = "做多",
-    leverage = "10x",
-    amount = "100 USDT",
-    entryPrice = "市价",
-    stopLoss = "-3%",
-    trailDistance = "2%",
-    trailActivate = "2%",
+    symbol = "BTC/USDT", direction = "做多", leverage = "10x",
+    amount = "100 USDT", entryPrice = "市价",
+    stopLoss = "-3%", trailDistance = "2%", trailActivate = "2%",
+    maxLoss = 0,
   } = params;
 
   const isLong = direction.includes("多");
@@ -68,6 +65,7 @@ export function TradeConfirmCard({
         <Detail label="硬止损" value={stopLoss} color="#FB923C" />
         <Detail label="移动止盈" value={`${trailDistance} 回撤`} color="#34D399" />
         <Detail label={`盈利 >${trailActivate} 启动`} value="追踪" color="#F7D56D" />
+        <Detail label="最多亏损" value={`$${maxLoss}`} color="#FB923C" />
       </View>
 
       {/* Risk warning */}
