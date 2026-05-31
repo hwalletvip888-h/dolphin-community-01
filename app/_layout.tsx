@@ -33,6 +33,8 @@ export default function RootLayout() {
       <Stack.Screen name="discover/onchain" options={{ animation: "slide_from_right" }} />
       <Stack.Screen name="discover/events" options={{ animation: "slide_from_right" }} />
       <Stack.Screen name="discover/leaderboard" options={{ animation: "slide_from_right" }} />
+      <Stack.Screen name="settings/strategy" options={{ animation: "slide_from_right" }} />
+      <Stack.Screen name="settings/onchain" options={{ animation: "slide_from_right" }} />
     </Stack>
   );
 }
