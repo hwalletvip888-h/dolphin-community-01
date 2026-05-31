@@ -11,6 +11,7 @@ import { AGENTS } from "@/src/data/agents";
 import { CardRenderer } from "@/src/ui/cards/CardRenderer";
 import { TradeConfirmCard } from "@/src/ui/cards/TradeConfirmCard";
 import { Markdown } from "@/src/ui/Markdown";
+import { executeTrade } from "@/src/api/chat";
 import type { Message } from "@/src/types";
 
 // ── Typing dots ──
@@ -46,8 +47,23 @@ export default function ChatScreen() {
   const walletBalance = total || 0;
   const defaultMargin = Math.max(10, Math.round(walletBalance * 0.8));
   const [tradeMargin, setTradeMargin] = useState(String(defaultMargin));
-  const positionSize = Math.round(parseFloat(tradeMargin || "0") * 10); // 10x leverage
-  const maxLoss = Math.round(positionSize * 0.03); // -3% SL
+  const positionSize = Math.round(parseFloat(tradeMargin || "0") * 10);
+  const maxLoss = Math.round(positionSize * 0.03);
+
+  const handleTradeConfirm = async () => {
+    setShowTrade(false);
+    const symbol = agentId === "onchain" ? "PEPE-USDT" : "BTC-USDT";
+    const contracts = String(Math.max(1, Math.round(positionSize / 100))); // Approx contracts
+    try {
+      const result = await executeTrade({ instId: symbol, posSide: "long", lever: "10", sz: contracts });
+      const msg = result.ok
+        ? `✅ 订单已提交 #${result.orderId || "—"}\n${symbol} · 做多 · 杠杆 10x · ${contracts}张`
+        : `❌ 下单失败: ${result.msg || result.error || "未知错误"}`;
+      send(msg, agentId);
+    } catch {
+      send("❌ 网络错误，下单未完成", agentId);
+    }
+  };
   const listRef = useRef<FlatList<Message>>(null);
   const autoSent = useRef(false);
   const prevAgent = useRef("");
@@ -221,10 +237,7 @@ export default function ChatScreen() {
               maxLoss,
             }}
             onCancel={() => setShowTrade(false)}
-            onConfirm={() => {
-              setShowTrade(false);
-              send("确认开仓", agentId);
-            }}
+            onConfirm={handleTradeConfirm}
           />
         </View>
       </Modal>
