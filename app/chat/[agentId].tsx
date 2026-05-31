@@ -60,7 +60,7 @@ export default function ChatScreen() {
 
   const scrollToBottom = useCallback(() => {
     if (messages.length === 0) return;
-    setTimeout(() => listRef.current?.scrollToIndex({ index: messages.length - 1, animated: true, viewPosition: 0 }), 100);
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
   }, [messages.length]);
 
   useEffect(() => { scrollToBottom(); }, [messages]);
