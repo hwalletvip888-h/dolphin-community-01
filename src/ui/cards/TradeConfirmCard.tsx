@@ -8,7 +8,8 @@ interface TradeParams {
   amount?: string;
   entryPrice?: string;
   stopLoss?: string;
-  takeProfit?: string;
+  trailDistance?: string;  // trailing stop distance after activation
+  trailActivate?: string;  // when to activate trailing
 }
 
 export function TradeConfirmCard({
@@ -27,7 +28,8 @@ export function TradeConfirmCard({
     amount = "100 USDT",
     entryPrice = "市价",
     stopLoss = "-3%",
-    takeProfit = "+5%",
+    trailDistance = "2%",
+    trailActivate = "2%",
   } = params;
 
   const isLong = direction.includes("多");
@@ -63,9 +65,9 @@ export function TradeConfirmCard({
       {/* Detail rows */}
       <View style={s.grid}>
         <Detail label="入场价" value={entryPrice} />
-        <Detail label="止盈" value={takeProfit} color="#34D399" />
-        <Detail label="止损" value={stopLoss} color="#FB923C" />
-        <Detail label="预估手续费" value="~$0.05" />
+        <Detail label="硬止损" value={stopLoss} color="#FB923C" />
+        <Detail label="移动止盈" value={`${trailDistance} 回撤`} color="#34D399" />
+        <Detail label={`盈利 >${trailActivate} 启动`} value="追踪" color="#F7D56D" />
       </View>
 
       {/* Risk warning */}
