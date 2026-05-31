@@ -1,11 +1,12 @@
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { useState } from "react";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import { Shield, TrendingUp, AlertTriangle } from "lucide-react-native";
 
 interface TradeParams {
   symbol?: string;
   direction?: string;
   leverage?: string;
-  amount?: string;
+  margin?: string;
   entryPrice?: string;
   stopLoss?: string;
   trailDistance?: string;
@@ -24,23 +25,25 @@ export function TradeConfirmCard({
 }) {
   const {
     symbol = "BTC/USDT", direction = "做多", leverage = "10x",
-    amount = "100 USDT", entryPrice = "市价",
+    margin: initialMargin = "100", entryPrice = "市价",
     stopLoss = "-3%", trailDistance = "2%", trailActivate = "2%",
     maxLoss = 0,
   } = params;
 
+  const [margin, setMargin] = useState(initialMargin);
+  const posSize = Math.round(parseFloat(margin || "0") * 10); // 10x leverage
+  const actualLoss = Math.round(posSize * 0.03);
   const isLong = direction.includes("多");
 
   return (
     <View style={s.card}>
-      {/* Header */}
       <View style={s.header}>
         <Shield size={16} color="#F7D56D" />
         <Text style={s.headerTitle}>交易确认</Text>
-        <Text style={s.headerSub}>请仔细核对以下信息</Text>
+        <Text style={s.headerSub}>设置保证金金额</Text>
       </View>
 
-      {/* Main details */}
+      {/* Margin input */}
       <View style={s.main}>
         <View style={s.mainLeft}>
           <Text style={s.symbol}>{symbol}</Text>
@@ -54,9 +57,24 @@ export function TradeConfirmCard({
           </View>
         </View>
         <View style={s.mainRight}>
-          <Text style={s.amount}>{amount}</Text>
-          <Text style={s.amountLabel}>委托金额</Text>
+          <View style={s.inputWrap}>
+            <Text style={s.inputLabel}>保证金</Text>
+            <TextInput
+              value={margin}
+              onChangeText={setMargin}
+              keyboardType="numeric"
+              style={s.input}
+              placeholderTextColor="rgba(255,255,255,0.2)"
+            />
+            <Text style={s.inputUnit}>USDT</Text>
+          </View>
         </View>
+      </View>
+
+      {/* Position info */}
+      <View style={s.posRow}>
+        <View style={s.posItem}><Text style={s.posLabel}>仓位价值</Text><Text style={s.posVal}>${posSize.toLocaleString()}</Text></View>
+        <View style={s.posItem}><Text style={s.posLabel}>最多亏损</Text><Text style={[s.posVal, { color: "#FB923C" }]}>${actualLoss.toLocaleString()}</Text></View>
       </View>
 
       {/* Detail rows */}
@@ -65,7 +83,6 @@ export function TradeConfirmCard({
         <Detail label="硬止损" value={stopLoss} color="#FB923C" />
         <Detail label="移动止盈" value={`${trailDistance} 回撤`} color="#34D399" />
         <Detail label={`盈利 >${trailActivate} 启动`} value="追踪" color="#F7D56D" />
-        <Detail label="最多亏损" value={`$${maxLoss}`} color="#FB923C" />
       </View>
 
       {/* Risk warning */}
@@ -118,8 +135,14 @@ const s = StyleSheet.create({
   pill: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   pillText: { fontSize: 11, fontWeight: "700" },
   mainRight: { alignItems: "flex-end" },
-  amount: { fontSize: 20, fontWeight: "900", color: "#fff" },
-  amountLabel: { fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2 },
+  inputWrap: { flexDirection: "row", alignItems: "center", gap: 4 },
+  inputLabel: { fontSize: 10, color: "rgba(255,255,255,0.4)" },
+  input: { fontSize: 18, fontWeight: "900", color: "#F7D56D", minWidth: 60, textAlign: "right", borderBottomWidth: 1, borderColor: "rgba(247,213,109,0.3)", paddingVertical: 4 },
+  inputUnit: { fontSize: 12, color: "rgba(255,255,255,0.3)" },
+  posRow: { flexDirection: "row", marginBottom: 12, gap: 8 },
+  posItem: { flex: 1, backgroundColor: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 10, alignItems: "center" },
+  posLabel: { fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 2 },
+  posVal: { fontSize: 15, fontWeight: "800", color: "#fff" },
   grid: { flexDirection: "row", flexWrap: "wrap", marginBottom: 12 },
   warn: { flexDirection: "row", gap: 8, backgroundColor: "rgba(247,213,109,0.06)", borderRadius: 12, padding: 10, marginBottom: 16 },
   warnText: { flex: 1, fontSize: 11, color: "rgba(247,213,109,0.7)", lineHeight: 16 },
