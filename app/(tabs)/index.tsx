@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
-import { Sparkles, TrendingUp, Globe, Trophy, BarChart3, Grid3X3, Coins, Shield } from "lucide-react-native";
+import { Sparkles, TrendingUp, Globe, Trophy, BarChart3, Grid3X3, Coins, Shield, Wallet } from "lucide-react-native";
 import { AGENTS } from "@/src/data/agents";
 import { useAuth } from "@/src/stores/auth";
 
@@ -43,7 +43,7 @@ export default function HomeScreen() {
       <TouchableOpacity style={s.walletCard} onPress={() => router.push("/wallet")} activeOpacity={0.85}>
         <View style={s.walletTop}>
           <View style={s.walletLeft}>
-            <Text style={{ fontSize: 16 }}>👛</Text>
+            <Wallet size={18} color="#F7D56D" />
             <Text style={s.walletLabel}>Agent Wallet</Text>
           </View>
           <View style={s.walletRight}>
@@ -51,28 +51,38 @@ export default function HomeScreen() {
               <Shield size={12} color="#34D399" />
               <Text style={s.levelText}>Lv.{level}</Text>
             </View>
-            <Text style={s.walletArrow}>→</Text>
           </View>
         </View>
 
-        <Text style={s.walletTotal}>
-          {total !== null ? `$${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00"}
-        </Text>
-
-        {/* Mini sparkline */}
-        {tokens.length > 0 && (
-          <>
-            <View style={s.miniSpark}>
-              {[2,5,3,8,4,6,9,7,10,8,11,9,12,10,13,11,14,12,15,13].map((v, i) => (
-                <View key={i} style={[s.miniBar, { height: v * 2, backgroundColor: v > 7 ? "#34D399" : "rgba(251,146,60,0.6)" }]} />
-              ))}
-            </View>
+        {/* Balance + mini K-line side by side */}
+        <View style={s.walletBody}>
+          <View style={s.walletBalanceSide}>
+            <Text style={s.walletTotal}>
+              {total !== null ? `$${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00"}
+            </Text>
             <View style={s.pnlMini}>
-              <Text style={[s.pnlMiniVal, { color: "#34D399" }]}>+$12.40 今日</Text>
-              <Text style={s.pnlMiniInfo}>点击查看详情 →</Text>
+              <Text style={[s.pnlMiniVal, { color: "#34D399" }]}>+$12.40</Text>
+              <Text style={s.pnlMiniLabel}>今日收益</Text>
             </View>
-          </>
-        )}
+          </View>
+          {/* Mini K-line */}
+          <View style={s.klineMini}>
+            <View style={s.klineBars}>
+              {[2,5,3,8,4,6,9,7,10,8,11,9,12,10,13].map((v, i) => {
+                const h = (v / 15) * 40;
+                const isUp = i > 0 ? v >= [2,5,3,8,4,6,9,7,10,8,11,9,12,10][i] : true;
+                return (
+                  <View key={i} style={[s.klineBar, { height: h, backgroundColor: isUp ? "#34D399" : "rgba(251,146,60,0.65)" }]} />
+                );
+              })}
+            </View>
+            <View style={s.klineLabels}>
+              <Text style={s.klineLabel}>1D</Text>
+              <Text style={s.klineLabel}>7D</Text>
+              <Text style={[s.klineLabel, { color: "#F7D56D" }]}>30D</Text>
+            </View>
+          </View>
+        </View>
 
         {tokens.length > 0 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tokenRow}>
@@ -205,14 +215,20 @@ const s = StyleSheet.create({
   walletLabel: { fontSize: 13, fontWeight: "600", color: "#F7D56D" },
   levelBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(52,211,153,0.1)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
   levelText: { fontSize: 11, fontWeight: "700", color: "#34D399" },
-  walletTotal: { fontSize: 30, fontWeight: "900", color: "#fff", marginBottom: 8 },
-  miniSpark: { flexDirection: "row", alignItems: "flex-end", gap: 2, height: 30, marginBottom: 4 },
-  miniBar: { width: 5, borderRadius: 3 },
-  pnlMini: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-  pnlMiniVal: { fontSize: 12, fontWeight: "700" },
-  pnlMiniInfo: { fontSize: 11, color: "rgba(255,255,255,0.3)" },
+  // Wallet body (balance + K-line)
+  walletBody: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 6 },
+  walletBalanceSide: { flex: 1 },
+  walletTotal: { fontSize: 28, fontWeight: "900", color: "#fff" },
+  pnlMini: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
+  pnlMiniVal: { fontSize: 13, fontWeight: "700" },
+  pnlMiniLabel: { fontSize: 11, color: "rgba(255,255,255,0.3)" },
+  // Mini K-line
+  klineMini: { width: 120, alignItems: "center" },
+  klineBars: { flexDirection: "row", alignItems: "flex-end", gap: 2, height: 42 },
+  klineBar: { width: 6, borderRadius: 3 },
+  klineLabels: { flexDirection: "row", justifyContent: "space-between", width: "100%", marginTop: 4 },
+  klineLabel: { fontSize: 9, color: "rgba(255,255,255,0.25)", fontWeight: "600" },
   walletRight: { flexDirection: "row", alignItems: "center", gap: 8 },
-  walletArrow: { fontSize: 16, color: "rgba(255,255,255,0.3)" },
   tokenRow: { flexDirection: "row", gap: 8 },
   tokenChip: {
     backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 12,
