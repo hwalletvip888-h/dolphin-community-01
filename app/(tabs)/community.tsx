@@ -1,148 +1,132 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, Dimensions, NativeSyntheticEvent, NativeScrollEvent,
+  View, Text, TextInput, TouchableOpacity, FlatList,
+  StyleSheet, KeyboardAvoidingView, Platform,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { Users, TrendingUp, MessageCircle, Trophy, ArrowRight } from "lucide-react-native";
+import { Send } from "lucide-react-native";
 
-const { width: W } = Dimensions.get("window");
-
-const BANNERS = [
-  { title: "海豚社区正式上线", subtitle: "AI Agent 驱动的 Web3 社区", color: "#C063FF", bg: "rgba(192,99,255,0.1)" },
-  { title: "世界杯竞猜开启", subtitle: "AI 预言帝帮你分析赔率", color: "#FBBF24", bg: "rgba(251,191,36,0.1)" },
-  { title: "新手任务领奖励", subtitle: "完成引导获得社区积分", color: "#34D399", bg: "rgba(52,211,153,0.1)" },
+const MOCK_MSGS = [
+  { id: "1", user: "DeFi_Degen", content: "BTC 突破 $88K！诸葛策略给的信号太准了 🔥", time: "2m" },
+  { id: "2", user: "CryptoWhale", content: "链上猎手发现的地址今天又拉了 15%", time: "5m" },
+  { id: "3", user: "Newbie_001", content: "刚用 DEX 兑换了第一个 Meme，感觉不错", time: "8m" },
+  { id: "4", user: "TraderMax", content: "有没有一起研究 ETH 策略的？组个群", time: "12m" },
+  { id: "5", user: "HODLer", content: "世界杯竞猜西班牙夺冠，跟了 $50", time: "15m" },
+  { id: "6", user: "小海豚", content: "欢迎新朋友！有问题随时问我 🐬", time: "20m" },
 ];
 
-const FEEDS = [
-  { icon: MessageCircle, title: "讨论区", desc: "交流策略与心得", color: "#C084FC" },
-  { icon: TrendingUp, title: "策略广场", desc: "分享你的交易策略", color: "#F7D56D" },
-  { icon: Trophy, title: "排行榜", desc: "交易大赛 & 邀请榜", color: "#FB923C" },
-  { icon: Users, title: "群组", desc: "加入兴趣小组", color: "#38BDF8" },
-];
-
-const POSTS = [
-  { user: "CryptoWhale", content: "BTC 这波突破 $88K，诸葛策略给的信号很准！", likes: 42, time: "2h" },
-  { user: "DeFi_Degen", content: "链上猎手发现的 PEPE 地址今天又拉了 15%，跟单稳", likes: 28, time: "5h" },
-  { user: "Newbie_001", content: "小海豚教我完成了第一次 DEX 兑换，太简单了！", likes: 15, time: "8h" },
-];
+interface ChatMsg {
+  id: string;
+  user: string;
+  content: string;
+  time: string;
+  isMe?: boolean;
+}
 
 export default function CommunityScreen() {
-  const router = useRouter();
-  const [bannerIdx, setBannerIdx] = useState(0);
-  const carRef = useRef<ScrollView>(null);
+  const [msgs, setMsgs] = useState<ChatMsg[]>(MOCK_MSGS);
+  const [input, setInput] = useState("");
+  const listRef = useRef<FlatList<ChatMsg>>(null);
 
-  const handleBannerScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    setBannerIdx(Math.round(e.nativeEvent.contentOffset.x / (W - 40)));
+  const handleSend = () => {
+    const t = input.trim();
+    if (!t) return;
+    setMsgs((p) => [{ id: Date.now().toString(), user: "我", content: t, time: "刚刚", isMe: true }, ...p]);
+    setInput("");
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
+  const renderMsg = ({ item }: { item: ChatMsg }) => (
+    <View style={item.isMe ? ms.meRow : ms.row}>
+      {!item.isMe && (
+        <View style={ms.avatar}>
+          <Text style={ms.avatarTxt}>{item.user[0]}</Text>
+        </View>
+      )}
+      <View style={[item.isMe ? ms.meBubble : ms.bubble]}>
+        {!item.isMe && <Text style={ms.userName}>{item.user}</Text>}
+        <Text style={item.isMe ? ms.meText : ms.text}>{item.content}</Text>
+        <Text style={ms.time}>{item.time}</Text>
+      </View>
+    </View>
+  );
+
   return (
-    <ScrollView style={s.root} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+    <KeyboardAvoidingView style={s.root} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={90}>
       {/* Header */}
       <View style={s.header}>
         <Text style={s.title}>海豚社区</Text>
-        <Text style={s.sub}>Dolphin Community</Text>
-      </View>
-
-      {/* Banner carousel */}
-      <ScrollView
-        ref={carRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={handleBannerScroll}
-        style={s.carousel}
-        snapToInterval={W - 40}
-        snapToAlignment="center"
-        decelerationRate="fast"
-      >
-        {BANNERS.map((b, i) => (
-          <View key={i} style={[s.banner, { width: W - 40, backgroundColor: b.bg, borderColor: b.color + "30" }]}>
-            <Text style={[s.bannerTitle, { color: b.color }]}>{b.title}</Text>
-            <Text style={s.bannerSub}>{b.subtitle}</Text>
-          </View>
-        ))}
-      </ScrollView>
-      {/* Banner dots */}
-      <View style={s.dots}>
-        {BANNERS.map((_, i) => (
-          <View key={i} style={[s.dot, i === bannerIdx && s.dotActive]} />
-        ))}
-      </View>
-
-      {/* Community feeds */}
-      <Text style={s.sectionTitle}>社区板块</Text>
-      <View style={s.feeds}>
-        {FEEDS.map((f) => (
-          <TouchableOpacity key={f.title} style={s.feedCard} activeOpacity={0.7}>
-            <View style={[s.feedIcon, { backgroundColor: f.color + "15" }]}>
-              <f.icon size={22} color={f.color} />
-            </View>
-            <Text style={s.feedLabel}>{f.title}</Text>
-            <Text style={s.feedDesc}>{f.desc}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Recent posts */}
-      <Text style={s.sectionTitle}>最新动态</Text>
-      {POSTS.map((p, i) => (
-        <View key={i} style={[s.post, i < POSTS.length - 1 && { borderBottomWidth: 0.5, borderColor: "rgba(255,255,255,0.05)", paddingBottom: 12, marginBottom: 12 }]}>
-          <View style={s.postHeader}>
-            <View style={s.postAvatar}>
-              <Text style={s.postAvatarTxt}>{p.user[0]}</Text>
-            </View>
-            <Text style={s.postUser}>{p.user}</Text>
-            <Text style={s.postTime}>{p.time}前</Text>
-          </View>
-          <Text style={s.postContent}>{p.content}</Text>
-          <View style={s.postFooter}>
-            <Text style={s.postLikes}>❤ {p.likes}</Text>
-          </View>
+        <View style={s.onlineRow}>
+          <View style={s.onlineDot} />
+          <Text style={s.onlineText}>128 人在线</Text>
         </View>
-      ))}
-    </ScrollView>
+      </View>
+
+      {/* Messages */}
+      <FlatList
+        ref={listRef}
+        data={msgs}
+        keyExtractor={(m) => m.id}
+        renderItem={renderMsg}
+        contentContainerStyle={s.list}
+        inverted
+        keyboardShouldPersistTaps="handled"
+      />
+
+      {/* Input */}
+      <View style={s.inputBar}>
+        <TextInput
+          value={input} onChangeText={setInput}
+          placeholder="和大家聊聊..."
+          placeholderTextColor="rgba(255,255,255,0.2)"
+          multiline maxLength={500}
+          style={s.input}
+          onSubmitEditing={handleSend}
+          returnKeyType="send" blurOnSubmit={false}
+        />
+        <TouchableOpacity onPress={handleSend} disabled={!input.trim()} style={[s.send, input.trim() ? s.sendOn : s.sendOff]}>
+          <Send size={17} color={input.trim() ? "#0D001A" : "rgba(255,255,255,0.25)"} />
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#090012" },
-  content: { paddingTop: 60, paddingHorizontal: 16, paddingBottom: 40 },
-  header: { alignItems: "center", marginBottom: 20 },
-  title: { fontSize: 24, fontWeight: "900", color: "#C063FF", letterSpacing: 3 },
-  sub: { fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginTop: 2 },
+  header: { alignItems: "center", paddingTop: 56, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.06)" },
+  title: { fontSize: 20, fontWeight: "900", color: "#C063FF", letterSpacing: 2 },
+  onlineRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 },
+  onlineDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#34D399" },
+  onlineText: { fontSize: 11, color: "rgba(255,255,255,0.35)" },
 
-  // Banner
-  carousel: { marginBottom: 10 },
-  banner: { borderRadius: 20, borderWidth: 0.5, padding: 28, marginRight: 12, justifyContent: "center", minHeight: 120 },
-  bannerTitle: { fontSize: 20, fontWeight: "900", marginBottom: 6 },
-  bannerSub: { fontSize: 14, color: "rgba(255,255,255,0.5)" },
-  dots: { flexDirection: "row", gap: 6, justifyContent: "center", marginBottom: 24 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.12)" },
-  dotActive: { width: 18, backgroundColor: "#F7D56D" },
+  list: { padding: 12, paddingBottom: 20 },
+  row: { flexDirection: "row", gap: 8, marginBottom: 14 },
+  meRow: { flexDirection: "row", justifyContent: "flex-end", marginBottom: 14 },
+  avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(192,99,255,0.2)", alignItems: "center", justifyContent: "center", marginTop: 2 },
+  avatarTxt: { fontSize: 12, fontWeight: "700", color: "#C063FF" },
+  bubble: { flex: 1, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 16, padding: 10, maxWidth: "80%" },
+  meBubble: { backgroundColor: "#C063FF", borderRadius: 16, padding: 10, maxWidth: "80%" },
+  userName: { fontSize: 11, fontWeight: "700", color: "#C063FF", marginBottom: 2 },
+  text: { fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 20 },
+  meText: { fontSize: 14, color: "#fff", lineHeight: 20 },
+  time: { fontSize: 9, color: "rgba(255,255,255,0.2)", marginTop: 4, textAlign: "right" },
 
-  // Sections
-  sectionTitle: { fontSize: 15, fontWeight: "700", color: "#fff", marginBottom: 12 },
+  inputBar: { flexDirection: "row", alignItems: "flex-end", padding: 8, paddingBottom: 28, borderTopWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.06)", gap: 8, backgroundColor: "#0A0020" },
+  input: { flex: 1, backgroundColor: "rgba(255,255,255,0.04)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.06)", borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10, color: "#fff", fontSize: 15, maxHeight: 100 },
+  send: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  sendOff: { backgroundColor: "rgba(255,255,255,0.06)" },
+  sendOn: { backgroundColor: "#F7D56D" },
+});
 
-  // Feeds
-  feeds: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 24 },
-  feedCard: {
-    width: "47%", backgroundColor: "rgba(35,10,62,0.4)", borderRadius: 16,
-    borderWidth: 0.5, borderColor: "rgba(192,99,255,0.1)",
-    padding: 16, alignItems: "center", gap: 6,
-  },
-  feedIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  feedLabel: { fontSize: 14, fontWeight: "700", color: "#fff" },
-  feedDesc: { fontSize: 11, color: "rgba(255,255,255,0.35)" },
-
-  // Posts
-  post: {},
-  postHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
-  postAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(192,99,255,0.2)", alignItems: "center", justifyContent: "center" },
-  postAvatarTxt: { fontSize: 12, fontWeight: "700", color: "#C063FF" },
-  postUser: { fontSize: 13, fontWeight: "600", color: "#fff" },
-  postTime: { fontSize: 10, color: "rgba(255,255,255,0.25)", marginLeft: "auto" },
-  postContent: { fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 20, marginBottom: 8 },
-  postFooter: { flexDirection: "row" },
-  postLikes: { fontSize: 11, color: "rgba(255,255,255,0.3)" },
+const ms = StyleSheet.create({
+  row: { flexDirection: "row", gap: 8, marginBottom: 14 },
+  meRow: { flexDirection: "row", justifyContent: "flex-end", marginBottom: 14 },
+  avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(192,99,255,0.2)", alignItems: "center", justifyContent: "center", marginTop: 2 },
+  avatarTxt: { fontSize: 12, fontWeight: "700", color: "#C063FF" },
+  bubble: { flex: 1, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 16, padding: 10, maxWidth: "80%" },
+  meBubble: { backgroundColor: "#C063FF", borderRadius: 16, padding: 10, maxWidth: "80%" },
+  userName: { fontSize: 11, fontWeight: "700", color: "#C063FF", marginBottom: 2 },
+  text: { fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 20 },
+  meText: { fontSize: 14, color: "#fff", lineHeight: 20 },
+  time: { fontSize: 9, color: "rgba(255,255,255,0.2)", marginTop: 4, textAlign: "right" },
 });
