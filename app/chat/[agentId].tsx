@@ -123,9 +123,6 @@ export default function ChatScreen() {
             </View>
           ))}
         </View>
-        <View style={ws.msgBubble}>
-          <Text style={ws.msgText}>{agent.welcome}</Text>
-        </View>
       </View>
       <Text style={ws.qTitle}>你可以这样问我：</Text>
       <View style={ws.qRow}>
@@ -244,8 +241,6 @@ const ws = StyleSheet.create({
   skills: { flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center", marginBottom: 14 },
   skill: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5 },
   skillT: { fontSize: 11, fontWeight: "600" },
-  msgBubble: { backgroundColor: "rgba(255,255,255,0.03)", borderRadius: 14, padding: 12, width: "100%" },
-  msgText: { fontSize: 12, color: "rgba(255,255,255,0.4)", lineHeight: 18, textAlign: "center" },
   qTitle: { fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.35)", marginBottom: 10, marginLeft: 12 },
   qRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 8 },
   qBtn: { backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 16, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.07)", paddingHorizontal: 14, paddingVertical: 10 },
