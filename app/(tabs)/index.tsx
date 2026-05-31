@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal } from "react-native";
 import { useRouter } from "expo-router";
-import { Shield, Copy, X, Download, Search, User, MessageSquare } from "lucide-react-native";
+import { Shield, Copy, X, Download, Search, User, MessageSquare, BookOpen, FileText, Gift, AlertCircle } from "lucide-react-native";
 import { AGENTS } from "@/src/data/agents";
 import { useAuth } from "@/src/stores/auth";
 
@@ -144,6 +144,23 @@ export default function HomeScreen() {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {/* Quick links */}
+      <View style={s.quickRow}>
+        {[
+          { icon: BookOpen, label: "新人指南", color: "#38BDF8", route: "/chat/dolphin", msg: "我是新人，介绍一下平台功能" },
+          { icon: FileText, label: "平台规则", color: "#A78BFA", route: "/chat/dolphin", msg: "平台的交易规则是什么" },
+          { icon: Gift, label: "邀请好友", color: "#FBBF24", route: "/chat/reward", msg: "邀请好友有什么奖励" },
+          { icon: AlertCircle, label: "投诉建议", color: "#FB923C", route: "/chat/dolphin", msg: "我有一些建议想反馈" },
+        ].map((q) => (
+          <TouchableOpacity key={q.label} style={s.quickItem} onPress={() => router.push(`${q.route}?msg=${encodeURIComponent(q.msg)}`)} activeOpacity={0.7}>
+            <View style={[s.quickIcon, { backgroundColor: q.color + "15" }]}>
+              <q.icon size={20} color={q.color} />
+            </View>
+            <Text style={s.quickLabel}>{q.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </ScrollView>
   );
 }
@@ -195,6 +212,11 @@ const s = StyleSheet.create({
   sigLabel: { fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 1 },
   sigVal: { fontSize: 11, fontWeight: "600", color: "rgba(255,255,255,0.8)" },
   sigRR: { fontSize: 11, fontWeight: "700", color: "#F7D56D" },
+  // Quick links
+  quickRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 20, gap: 8 },
+  quickItem: { flex: 1, alignItems: "center", gap: 6, backgroundColor: "rgba(35,10,62,0.4)", borderRadius: 14, paddingVertical: 14 },
+  quickIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  quickLabel: { fontSize: 11, fontWeight: "600", color: "rgba(255,255,255,0.55)" },
 });
 
 // Deposit modal
