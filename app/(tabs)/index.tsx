@@ -27,7 +27,7 @@ export default function HomeScreen() {
           <Search size={16} color="rgba(255,255,255,0.3)" />
           <Text style={s.searchPlaceholder}>搜索代币 / 策略 / 信号...</Text>
         </View>
-        <TouchableOpacity style={s.msgBtn}>
+        <TouchableOpacity style={s.msgBtn} onPress={() => router.push("/messages")}>
           <MessageSquare size={20} color="rgba(255,255,255,0.6)" />
         </TouchableOpacity>
       </View>
