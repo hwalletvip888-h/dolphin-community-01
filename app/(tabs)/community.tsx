@@ -23,15 +23,14 @@ const MOCK: ChatMsg[] = [
 ];
 
 const CONTRACT_POS = [
-  { symbol: "BTC/USDT", side: "多", leverage: "10x", size: "0.05 BTC", entryPrice: "87,200", markPrice: "87,450", liqPrice: "78,480", margin: "$436", unrealizedPnl: "+$12.50", pnlPct: "+2.9%", tp: "89,500", sl: "85,800", fundingRate: "0.01%" },
-  { symbol: "ETH/USDT", side: "空", leverage: "5x", size: "0.5 ETH", entryPrice: "4,150", markPrice: "4,120", liqPrice: "4,980", margin: "$415", unrealizedPnl: "+$15.00", pnlPct: "+3.6%", tp: "3,900", sl: "4,300", fundingRate: "-0.02%" },
-  { symbol: "SOL/USDT", side: "多", leverage: "3x", size: "10 SOL", entryPrice: "178.5", markPrice: "184.5", liqPrice: "119.0", margin: "$595", unrealizedPnl: "+$60.00", pnlPct: "+10.1%", tp: "195.0", sl: "172.0", fundingRate: "0.01%" },
+  { id: "c1", symbol: "BTC/USDT", side: "多", leverage: "10x", usdValue: "$4,360", entryPrice: "87,200", markPrice: "87,450", liqPrice: "78,480", unrealizedPnl: "+$12.50", pnlPct: "+2.9%", strategy: "H1 布林带反转", agent: "诸葛策略" },
+  { id: "c2", symbol: "ETH/USDT", side: "空", leverage: "5x", usdValue: "$2,075", entryPrice: "4,150", markPrice: "4,120", liqPrice: "4,980", unrealizedPnl: "+$15.00", pnlPct: "+3.6%", strategy: "EMA 金叉趋势", agent: "诸葛策略" },
 ];
 
-const SPOT_POS = [
-  { symbol: "BTC", chain: "Ethereum", amount: "0.0025", price: "$87,200", value: "$218.00", cost: "$200.00", pnl: "+$18.00", pnlPct: "+9.0%", icon: "₿" },
-  { symbol: "USDT", chain: "X Layer", amount: "1,500.00", price: "$1.00", value: "$1,500.00", cost: "$1,500.00", pnl: "$0.00", pnlPct: "0.0%", icon: "💲" },
-  { symbol: "ETH", chain: "Arbitrum", amount: "0.15", price: "$4,150", value: "$622.50", cost: "$600.00", pnl: "+$22.50", pnlPct: "+3.8%", icon: "Ξ" },
+const EARN_POS = [
+  { id: "e1", protocol: "AAVE", chain: "Ethereum", token: "USDC", usdValue: "$800.00", apy: "8.2%", earned: "+$3.20", days: 12, type: "借贷" },
+  { id: "e2", protocol: "Lido", chain: "Ethereum", token: "stETH", usdValue: "$1,250.00", apy: "3.8%", earned: "+$12.50", days: 45, type: "质押" },
+  { id: "e3", protocol: "Uniswap V3", chain: "Arbitrum", token: "ETH/USDC LP", usdValue: "$420.00", apy: "18.5%", earned: "+$8.10", days: 20, type: "做市" },
 ];
 
 export default function CommunityScreen() {
@@ -44,7 +43,11 @@ export default function CommunityScreen() {
   const listRef = useRef<FlatList<ChatMsg>>(null);
   // Mock positions for "current positions" tab
   const myContractPos = CONTRACT_POS;
-  const mySpotPos = SPOT_POS;
+  const myEarnPos = EARN_POS;
+
+  const totalContract = myContractPos.reduce((s, p) => s + parseFloat(p.usdValue.replace("$","").replace(",","")), 0);
+  const totalEarn = myEarnPos.reduce((s, p) => s + parseFloat(p.usdValue.replace("$","").replace(",","")), 0);
+  const totalPnl = myContractPos.reduce((s, p) => s + parseFloat(p.unrealizedPnl.replace("$","").replace("+","")), 0) + myEarnPos.reduce((s, p) => s + parseFloat(p.earned.replace("$","").replace("+","")), 0);
 
   const addMsg = (msg: ChatMsg) => { setMsgs((p) => [msg, ...p]); setShowMenu(false); setMenuPage("main"); };
 
@@ -95,58 +98,60 @@ export default function CommunityScreen() {
         {/* Summary */}
         <View style={ps.summaryCard}>
           <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-            <View style={{ alignItems: "center" }}><Text style={ps.sumVal}>$3,060</Text><Text style={ps.sumLabel}>合约保证金</Text></View>
+            <View style={{ alignItems: "center" }}><Text style={ps.sumVal}>${totalContract.toLocaleString()}</Text><Text style={ps.sumLabel}>合约策略</Text></View>
             <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.06)" }} />
-            <View style={{ alignItems: "center" }}><Text style={ps.sumVal}>$2,340</Text><Text style={ps.sumLabel}>现货市值</Text></View>
+            <View style={{ alignItems: "center" }}><Text style={ps.sumVal}>${totalEarn.toLocaleString()}</Text><Text style={ps.sumLabel}>链上赚币</Text></View>
             <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.06)" }} />
-            <View style={{ alignItems: "center" }}><Text style={[ps.sumVal, { color: "#34D399" }]}>+$87.50</Text><Text style={ps.sumLabel}>今日盈亏</Text></View>
+            <View style={{ alignItems: "center" }}><Text style={[ps.sumVal, { color: totalPnl >= 0 ? "#34D399" : "#FB923C" }]}>{totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)}</Text><Text style={ps.sumLabel}>总盈亏</Text></View>
           </View>
         </View>
 
         {/* Contract positions */}
-        <Text style={ps.sectionTitle}>📊 合约持仓</Text>
-        {myContractPos.map((pos, i) => (
-          <View key={i} style={ps.card}>
+        <Text style={ps.sectionTitle}>📊 合约策略仓位</Text>
+        {myContractPos.map((pos) => (
+          <View key={pos.id} style={ps.card}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                 <Text style={ps.symbol}>{pos.symbol}</Text>
                 <Text style={[ps.side, { color: pos.side === "多" ? "#34D399" : "#FB923C" }]}>{pos.side}</Text>
                 <Text style={ps.lev}>{pos.leverage}</Text>
               </View>
-              <Text style={[ps.pnl, { color: pos.unrealizedPnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{pos.unrealizedPnl} ({pos.pnlPct})</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Text style={[ps.pnl, { color: pos.unrealizedPnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{pos.unrealizedPnl} ({pos.pnlPct})</Text>
+              </View>
             </View>
             <View style={ps.detailRow}>
-              <View style={ps.detail}><Text style={ps.dLabel}>仓位</Text><Text style={ps.dVal}>{pos.size}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>仓位价值</Text><Text style={ps.dVal}>{pos.usdValue}</Text></View>
               <View style={ps.detail}><Text style={ps.dLabel}>开仓价</Text><Text style={ps.dVal}>${pos.entryPrice}</Text></View>
               <View style={ps.detail}><Text style={ps.dLabel}>标记价</Text><Text style={ps.dVal}>${pos.markPrice}</Text></View>
               <View style={ps.detail}><Text style={ps.dLabel}>强平</Text><Text style={[ps.dVal, { color: "#FB923C" }]}>${pos.liqPrice}</Text></View>
             </View>
-            <View style={ps.detailRow}>
-              <View style={ps.detail}><Text style={ps.dLabel}>保证金</Text><Text style={ps.dVal}>{pos.margin}</Text></View>
-              <View style={ps.detail}><Text style={ps.dLabel}>止盈</Text><Text style={[ps.dVal, { color: "#34D399" }]}>${pos.tp}</Text></View>
-              <View style={ps.detail}><Text style={ps.dLabel}>止损</Text><Text style={[ps.dVal, { color: "#FB923C" }]}>${pos.sl}</Text></View>
-              <View style={ps.detail}><Text style={ps.dLabel}>资金费率</Text><Text style={ps.dVal}>{pos.fundingRate}</Text></View>
-            </View>
+            <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 6 }}>策略: {pos.strategy} · {pos.agent}</Text>
+            <TouchableOpacity style={ps.closeBtn} activeOpacity={0.7}>
+              <Text style={ps.closeBtnText}>平仓</Text>
+            </TouchableOpacity>
           </View>
         ))}
 
-        {/* Spot positions */}
-        <Text style={[ps.sectionTitle, { marginTop: 8 }]}>💎 现货持仓</Text>
-        {mySpotPos.map((pos, i) => (
-          <View key={i} style={ps.card}>
+        {/* Earn positions */}
+        <Text style={[ps.sectionTitle, { marginTop: 8 }]}>💰 链上赚币仓位</Text>
+        {myEarnPos.map((pos) => (
+          <View key={pos.id} style={ps.card}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Text style={{ fontSize: 15, fontWeight: "800", color: "#fff" }}>{pos.symbol}</Text>
-                <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", backgroundColor: "rgba(255,255,255,0.04)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>{pos.chain}</Text>
+              <View>
+                <Text style={ps.symbol}>{pos.token}</Text>
+                <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{pos.protocol} · {pos.chain} · {pos.type}</Text>
               </View>
-              <Text style={[ps.pnl, { color: pos.pnl.startsWith("+") ? "#34D399" : pos.pnl === "$0.00" ? "rgba(255,255,255,0.4)" : "#FB923C" }]}>{pos.pnl} ({pos.pnlPct})</Text>
+              <Text style={ps.usdVal}>{pos.usdValue}</Text>
             </View>
             <View style={ps.detailRow}>
-              <View style={ps.detail}><Text style={ps.dLabel}>数量</Text><Text style={ps.dVal}>{pos.amount}</Text></View>
-              <View style={ps.detail}><Text style={ps.dLabel}>现价</Text><Text style={ps.dVal}>{pos.price}</Text></View>
-              <View style={ps.detail}><Text style={ps.dLabel}>市值</Text><Text style={ps.dVal}>{pos.value}</Text></View>
-              <View style={ps.detail}><Text style={ps.dLabel}>成本</Text><Text style={ps.dVal}>{pos.cost}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>年化</Text><Text style={[ps.dVal, { color: "#34D399" }]}>{pos.apy}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>已赚</Text><Text style={[ps.dVal, { color: "#34D399" }]}>{pos.earned}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>天数</Text><Text style={ps.dVal}>{pos.days}天</Text></View>
             </View>
+            <TouchableOpacity style={[ps.closeBtn, { backgroundColor: "rgba(251,146,60,0.1)", borderColor: "rgba(251,146,60,0.2)" }]} activeOpacity={0.7}>
+              <Text style={[ps.closeBtnText, { color: "#FB923C" }]}>赎回</Text>
+            </TouchableOpacity>
           </View>
         ))}
       </ScrollView>
@@ -335,6 +340,9 @@ const ps = StyleSheet.create({
   detail: { alignItems: "center" },
   dLabel: { fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 2 },
   dVal: { fontSize: 11, fontWeight: "600", color: "rgba(255,255,255,0.7)" },
+  usdVal: { fontSize: 15, fontWeight: "800", color: "#fff" },
+  closeBtn: { marginTop: 10, backgroundColor: "rgba(239,68,68,0.08)", borderRadius: 12, borderWidth: 0.5, borderColor: "rgba(239,68,68,0.2)", paddingVertical: 9, alignItems: "center" },
+  closeBtnText: { fontSize: 13, fontWeight: "700", color: "#EF4444" },
 });
 
 // Position message card
