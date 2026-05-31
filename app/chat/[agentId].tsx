@@ -35,8 +35,9 @@ export default function ChatScreen() {
   const { agentId, msg } = useLocalSearchParams<{ agentId: string; msg?: string }>();
   const router = useRouter();
   const agent = AGENTS.find((a) => a.id === agentId) || AGENTS[0];
-  const { getMessages, getConvId, isTyping, send, clearAgent, cancel } = useChat();
-  const messages = getMessages();
+  const { isTyping, send, clearAgent, cancel } = useChat();
+  const messages = useChat((s) => s.sessions[agentId]?.messages || []);
+  const conversationId = useChat((s) => s.sessions[agentId]?.conversationId || "");
   const { total } = useAuth();
   const [input, setInput] = useState("");
   const [showTrade, setShowTrade] = useState(false);
@@ -52,7 +53,14 @@ export default function ChatScreen() {
   const prevAgent = useRef("");
   const isEmpty = messages.length === 0;
 
-  useEffect(() => { if (prevAgent.current && prevAgent.current !== agentId) { clearAgent(prevAgent.current); } prevAgent.current = agentId; }, [agentId]);
+  // 设置活跃 Agent 会话
+  useEffect(() => {
+    useChat.setState({ activeAgent: agentId });
+    if (prevAgent.current && prevAgent.current !== agentId) {
+      // 可选: 切 Agent 时不清空,保留对方历史
+    }
+    prevAgent.current = agentId;
+  }, [agentId]);
 
   // Auto-send message from home page signal tap
   useEffect(() => {
