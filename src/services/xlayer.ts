@@ -89,18 +89,21 @@ export interface TaggedWhale {
   score: number; txCount: number; lastSeen: string;
 }
 
-// Known bad patterns
-const SNIPER_PATTERNS = /snipe|bot|0x0000|front/i;
-const KOL_ADDRESSES = new Set(["0x3a7ecfa27ce8e512255739b6946eb5b11ac4a077"]); // Example
-const SCAM_ADDRESSES = new Set<string>([]);
+import { matchAddress } from "@/src/data/address-book";
 
 export function tagAddress(address: string, txCount = 1): TaggedWhale {
   const addr = address.toLowerCase();
-  if (SCAM_ADDRESSES.has(addr)) return { address, tag: "scammer", tagLabel: "诈骗", tagColor: "#EF4444", score: 0, txCount, lastSeen: new Date().toISOString() };
-  if (SNIPER_PATTERNS.test(addr)) return { address, tag: "sniper", tagLabel: "机器人", tagColor: "#FB923C", score: 30, txCount, lastSeen: new Date().toISOString() };
-  if (KOL_ADDRESSES.has(addr)) return { address, tag: "kol", tagLabel: "KOL", tagColor: "#F7D56D", score: 60, txCount, lastSeen: new Date().toISOString() };
 
-  // Default: score based on transaction count (>10 tx = more reliable)
+  // Check known address database first
+  const known = matchAddress(addr);
+  if (known) {
+    const tagColors: Record<string, string> = { smart_money: "#34D399", kol: "#F7D56D", sniper: "#FB923C", scammer: "#EF4444" };
+    const tagLabels: Record<string, string> = { smart_money: "聪明钱", kol: "KOL", sniper: "机器人", scammer: "诈骗" };
+    const tagScores: Record<string, number> = { smart_money: 90, kol: 60, sniper: 30, scammer: 0 };
+    return { address, tag: known.tag, tagLabel: tagLabels[known.tag], tagColor: tagColors[known.tag], score: tagScores[known.tag], txCount, lastSeen: new Date().toISOString() };
+  }
+
+  // Default heuristic: score based on transaction count
   const score = Math.min(100, 40 + txCount * 5);
   return { address, tag: score >= 70 ? "smart_money" : "unknown", tagLabel: score >= 70 ? "聪明钱" : "未标记", tagColor: score >= 70 ? "#34D399" : "rgba(255,255,255,0.3)", score, txCount, lastSeen: new Date().toISOString() };
 }
