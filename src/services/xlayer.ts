@@ -80,3 +80,38 @@ export async function fetchPredictionMarkets(limit = 20): Promise<PredictionMark
     return [];
   }
 }
+
+// ── Whale filtering & tagging ──
+export type WhaleTag = "smart_money" | "kol" | "sniper" | "scammer" | "unknown";
+
+export interface TaggedWhale {
+  address: string; tag: WhaleTag; tagLabel: string; tagColor: string;
+  score: number; txCount: number; lastSeen: string;
+}
+
+// Known bad patterns
+const SNIPER_PATTERNS = /snipe|bot|0x0000|front/i;
+const KOL_ADDRESSES = new Set(["0x3a7ecfa27ce8e512255739b6946eb5b11ac4a077"]); // Example
+const SCAM_ADDRESSES = new Set<string>([]);
+
+export function tagAddress(address: string, txCount = 1): TaggedWhale {
+  const addr = address.toLowerCase();
+  if (SCAM_ADDRESSES.has(addr)) return { address, tag: "scammer", tagLabel: "诈骗", tagColor: "#EF4444", score: 0, txCount, lastSeen: new Date().toISOString() };
+  if (SNIPER_PATTERNS.test(addr)) return { address, tag: "sniper", tagLabel: "机器人", tagColor: "#FB923C", score: 30, txCount, lastSeen: new Date().toISOString() };
+  if (KOL_ADDRESSES.has(addr)) return { address, tag: "kol", tagLabel: "KOL", tagColor: "#F7D56D", score: 60, txCount, lastSeen: new Date().toISOString() };
+
+  // Default: score based on transaction count (>10 tx = more reliable)
+  const score = Math.min(100, 40 + txCount * 5);
+  return { address, tag: score >= 70 ? "smart_money" : "unknown", tagLabel: score >= 70 ? "聪明钱" : "未标记", tagColor: score >= 70 ? "#34D399" : "rgba(255,255,255,0.3)", score, txCount, lastSeen: new Date().toISOString() };
+}
+
+export function filterWhales(txs: LargeTx[]): { txs: LargeTx[]; tags: Map<string, TaggedWhale> } {
+  const tagMap = new Map<string, TaggedWhale>();
+  const filtered = txs.filter(tx => {
+    const tag = tagAddress(tx.from);
+    tagMap.set(tx.from, tag);
+    // Only show smart money, KOL, and unknown (not snipers/scammers)
+    return tag.tag !== "scammer" && tag.tag !== "sniper";
+  });
+  return { txs: filtered, tags: tagMap };
+}
