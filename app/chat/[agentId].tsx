@@ -51,12 +51,12 @@ export default function ChatScreen() {
   const prevAgent = useRef("");
   const isEmpty = messages.length === 0;
 
-  // 只在切换 Agent 时清空对话，回退再进入保留历史
+  // 首次进入或切换 Agent → 清空。回退再进入同一 Agent → 保留历史。
   useEffect(() => {
-    if (prevAgent.current && prevAgent.current !== agentId) {
-      clear();
+    if (prevAgent.current !== agentId) {
+      if (prevAgent.current) clear(); // 切换 Agent 时清空
+      prevAgent.current = agentId;
     }
-    prevAgent.current = agentId;
   }, [agentId]);
 
   // Auto-send message from home page signal tap
