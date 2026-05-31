@@ -6,6 +6,7 @@ import { AGENTS } from "@/src/data/agents";
 import { useAuth } from "@/src/stores/auth";
 import { useMarket } from "@/src/stores/market";
 import { Sparkline } from "@/src/ui/Sparkline";
+import { fetchLargeTransactions } from "@/src/services/xlayer";
 
 const ADDRESSES = [
   { chain: "EVM (ERC20)", addr: "0x7F4e...b3D2", fullAddr: "0x7F4e8c9A1b2C3d4E5f6A7B8C9D0E1F2A3B4C5D6" },
@@ -18,10 +19,14 @@ export default function HomeScreen() {
   const { tickers, candles, start: startWS, loadCandles } = useMarket();
   const [showDeposit, setShowDeposit] = useState(false);
   const [signals, setSignals] = useState<any[]>([]);
+  const [xlayerTxs, setXlayerTxs] = useState<any[]>([]);
   useEffect(() => { if (loggedIn) refreshWallet(); }, [loggedIn]);
-  useEffect(() => { startWS(); loadCandles(); fetchSignals(); }, []);
+  useEffect(() => { startWS(); loadCandles(); fetchSignals(); fetchXLayer(); }, []);
   const fetchSignals = async () => {
     try { const d = await (await fetch("https://api.hvip.ink/api/signals", { signal: AbortSignal.timeout(8000) })).json(); setSignals(d.signals || []); } catch {}
+  };
+  const fetchXLayer = async () => {
+    try { const txs = await fetchLargeTransactions(8); setXlayerTxs(txs); } catch {}
   };
 
   const mkLabels: Record<string, string> = { "BTC-USDT-SWAP": "BTC", "ETH-USDT-SWAP": "ETH", "SOL-USDT-SWAP": "SOL" };
@@ -120,26 +125,25 @@ export default function HomeScreen() {
         })}
       </ScrollView>
 
-      {/* 链上信号 — OKX Market API 真实数据 */}
+      {/* X Layer 鲸鱼追踪 — 真实链上大额交易 */}
       <View style={s.sectionHead}>
-        <Text style={s.sectionTitle}>链上信号</Text>
+        <Text style={s.sectionTitle}>X Layer 鲸鱼追踪</Text>
         <TouchableOpacity onPress={() => router.push("/signals")}><Text style={s.moreLink}>更多 →</Text></TouchableOpacity>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.cardRow}>
-        {(signals.length > 0 ? signals : [{ symbol: "—", name: "", price: "—", securityScore: 0, volume1h: "0", marketCap: "0" }]).slice(0, 8).map((c, i) => {
-          const score = c.securityScore || 0;
-          const scoreColor = score >= 80 ? "#34D399" : score >= 50 ? "#F7D56D" : "#FB923C";
-          const price = parseFloat(c.price);
-          const priceStr = isNaN(price) ? "—" : price < 0.01 ? `$${price.toFixed(6)}` : `$${price.toFixed(2)}`;
+        {(xlayerTxs.length > 0 ? xlayerTxs : [{ hash: "—", from: "0x0000", to: "0x0000", value: "0", timestamp: "" }]).slice(0, 5).map((tx, i) => {
+          const val = parseFloat(tx.value || "0");
+          const valStr = val > 1000000 ? `$${(val/1e6).toFixed(1)}M` : val > 1000 ? `$${(val/1e3).toFixed(1)}K` : `$${val.toFixed(0)}`;
+          const addr = (tx.from || "").slice(0, 6) + "..." + (tx.from || "").slice(-4);
           return (
-          <TouchableOpacity key={i} style={s.pickCard} onPress={() => router.push(`/chat/onchain?msg=${encodeURIComponent("帮我分析链上信号: " + c.symbol)}`)} activeOpacity={0.85}>
-            <View style={s.pickBadge}><Text style={s.pickBadgeT}>{c.symbol?.[0] || "?"}</Text></View>
-            <Text style={s.pickSym}>{c.symbol}</Text>
-            <Text style={s.pickPrice}>{priceStr}</Text>
-            <View style={[s.scoreBadge, { backgroundColor: scoreColor + "18" }]}>
-              <Text style={[s.scoreText, { color: scoreColor }]}>{Math.round(score)}分</Text>
+          <TouchableOpacity key={i} style={s.whaleCard} onPress={() => router.push(`/chat/onchain?msg=${encodeURIComponent("帮我分析这笔大额交易: " + tx.hash)}`)} activeOpacity={0.85}>
+            <View style={s.whaleValue}>
+              <Text style={s.whaleValueT}>{valStr}</Text>
             </View>
-            <View style={s.pickReason}><Text style={s.pickReasonT}>安全评分</Text></View>
+            <Text style={s.whaleAddr}>{addr}</Text>
+            <View style={[s.whaleBadge, { backgroundColor: "rgba(167,139,250,0.1)" }]}>
+              <Text style={[s.whaleBadgeT, { color: "#A78BFA" }]}>X Layer</Text>
+            </View>
           </TouchableOpacity>
         );
         })}
@@ -264,6 +268,13 @@ const s = StyleSheet.create({
   pickReasonT: { fontSize: 10, color: "#A78BFA", fontWeight: "600" },
   scoreBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   scoreText: { fontSize: 11, fontWeight: "700" },
+  // Whale cards
+  whaleCard: { width: 140, backgroundColor: "rgba(35,10,62,0.55)", borderRadius: 18, borderWidth: 0.5, borderColor: "rgba(167,139,250,0.15)", padding: 16, alignItems: "center", gap: 8 },
+  whaleValue: { backgroundColor: "rgba(167,139,250,0.1)", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 },
+  whaleValueT: { fontSize: 15, fontWeight: "800", color: "#A78BFA" },
+  whaleAddr: { fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "Courier" },
+  whaleBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  whaleBadgeT: { fontSize: 9, fontWeight: "700" },
   // 合约信号 cards
   sigCard: { width: 240, backgroundColor: "rgba(35,10,62,0.6)", borderRadius: 20, borderWidth: 0.5, borderColor: "rgba(192,99,255,0.15)", padding: 18 },
   coinBadge: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
