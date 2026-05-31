@@ -42,7 +42,7 @@ export default function CommunityScreen() {
   const [input, setInput] = useState("");
   const [showMenu, setShowMenu] = useState(false);
   const [menuPage, setMenuPage] = useState<"main" | "position">("main");
-  const [tab, setTab] = useState<"chat" | "positions">("chat");
+  const [tab, setTab] = useState<"chat" | "positions">("positions");
   const { level } = useAuth();
   const listRef = useRef<FlatList<ChatMsg>>(null);
   // Mock positions for "current positions" tab
@@ -88,11 +88,11 @@ export default function CommunityScreen() {
       <View style={s.header}>
         <Text style={s.hTitle}>海豚社区</Text>
         <View style={s.tabRow}>
-          <TouchableOpacity style={[s.tab, tab === "positions" && s.tabActive]} onPress={() => setTab("positions")}>
-            <Text style={[s.tabText, tab === "positions" && s.tabTextActive]}>当前仓位</Text>
-          </TouchableOpacity>
           <TouchableOpacity style={[s.tab, tab === "chat" && s.tabActive]} onPress={() => setTab("chat")}>
             <Text style={[s.tabText, tab === "chat" && s.tabTextActive]}>社区群聊</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[s.tab, tab === "positions" && s.tabActive]} onPress={() => setTab("positions")}>
+            <Text style={[s.tabText, tab === "positions" && s.tabTextActive]}>当前仓位</Text>
           </TouchableOpacity>
         </View>
         {tab === "chat" && <View style={s.hRow}><View style={s.hDot} /><Text style={s.hSub}>128 在线</Text></View>}
