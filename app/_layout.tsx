@@ -28,6 +28,11 @@ export default function RootLayout() {
       <Stack.Screen name="wallet" options={{ animation: "slide_from_right" }} />
       <Stack.Screen name="bookmarks" options={{ animation: "slide_from_right" }} />
       <Stack.Screen name="chat/[agentId]" options={{ animation: "slide_from_right" }} />
+      <Stack.Screen name="discover/worldcup" options={{ animation: "slide_from_right" }} />
+      <Stack.Screen name="discover/strategies" options={{ animation: "slide_from_right" }} />
+      <Stack.Screen name="discover/onchain" options={{ animation: "slide_from_right" }} />
+      <Stack.Screen name="discover/events" options={{ animation: "slide_from_right" }} />
+      <Stack.Screen name="discover/leaderboard" options={{ animation: "slide_from_right" }} />
     </Stack>
   );
 }
