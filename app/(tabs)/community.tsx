@@ -22,10 +22,16 @@ const MOCK: ChatMsg[] = [
   { id: "5", user: "CryptoWhale", type: "text", content: "链上猎手发现的地址今天又拉了 15%", time: "25m" },
 ];
 
-const POSITIONS = [
-  { symbol: "BTC/USDT", side: "多", size: "0.01 BTC", pnl: "+$12.40", pnlPct: "+1.8%" },
-  { symbol: "ETH/USDT", side: "空", size: "0.5 ETH", pnl: "-$8.20", pnlPct: "-1.5%" },
-  { symbol: "SOL/USDT", side: "多", size: "10 SOL", pnl: "+$23.10", pnlPct: "+3.7%" },
+const CONTRACT_POS = [
+  { symbol: "BTC/USDT", side: "多", leverage: "10x", size: "0.05 BTC", entryPrice: "87,200", markPrice: "87,450", liqPrice: "78,480", margin: "$436", unrealizedPnl: "+$12.50", pnlPct: "+2.9%", tp: "89,500", sl: "85,800", fundingRate: "0.01%" },
+  { symbol: "ETH/USDT", side: "空", leverage: "5x", size: "0.5 ETH", entryPrice: "4,150", markPrice: "4,120", liqPrice: "4,980", margin: "$415", unrealizedPnl: "+$15.00", pnlPct: "+3.6%", tp: "3,900", sl: "4,300", fundingRate: "-0.02%" },
+  { symbol: "SOL/USDT", side: "多", leverage: "3x", size: "10 SOL", entryPrice: "178.5", markPrice: "184.5", liqPrice: "119.0", margin: "$595", unrealizedPnl: "+$60.00", pnlPct: "+10.1%", tp: "195.0", sl: "172.0", fundingRate: "0.01%" },
+];
+
+const SPOT_POS = [
+  { symbol: "BTC", chain: "Ethereum", amount: "0.0025", price: "$87,200", value: "$218.00", cost: "$200.00", pnl: "+$18.00", pnlPct: "+9.0%", icon: "₿" },
+  { symbol: "USDT", chain: "X Layer", amount: "1,500.00", price: "$1.00", value: "$1,500.00", cost: "$1,500.00", pnl: "$0.00", pnlPct: "0.0%", icon: "💲" },
+  { symbol: "ETH", chain: "Arbitrum", amount: "0.15", price: "$4,150", value: "$622.50", cost: "$600.00", pnl: "+$22.50", pnlPct: "+3.8%", icon: "Ξ" },
 ];
 
 export default function CommunityScreen() {
@@ -37,7 +43,8 @@ export default function CommunityScreen() {
   const { level } = useAuth();
   const listRef = useRef<FlatList<ChatMsg>>(null);
   // Mock positions for "current positions" tab
-  const myPositions = POSITIONS;
+  const myContractPos = CONTRACT_POS;
+  const mySpotPos = SPOT_POS;
 
   const addMsg = (msg: ChatMsg) => { setMsgs((p) => [msg, ...p]); setShowMenu(false); setMenuPage("main"); };
 
@@ -55,7 +62,7 @@ export default function CommunityScreen() {
     addMsg({ id: Date.now().toString(), user: "我", type: "text", content: t, time: "刚刚", isMe: true }); setInput("");
   };
 
-  const sharePosition = (pos: typeof POSITIONS[0]) => {
+  const sharePosition = (pos: typeof CONTRACT_POS[0]) => {
     addMsg({ id: Date.now().toString(), user: "我", type: "position", time: "刚刚", isMe: true, position: pos });
   };
 
@@ -85,23 +92,63 @@ export default function CommunityScreen() {
       <FlatList ref={listRef} data={msgs} keyExtractor={(m) => m.id} renderItem={renderItem} contentContainerStyle={s.list} inverted keyboardShouldPersistTaps="handled" />
       ) : (
       <ScrollView style={ps.posScroll} contentContainerStyle={ps.posContent}>
-        <Text style={ps.posTitle}>我的持仓</Text>
-        {myPositions.map((pos, i) => (
-          <View key={i} style={ps.posCard}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-              <Text style={ps.posSymbol}>{pos.symbol}</Text>
-              <Text style={[ps.posSide, { color: pos.side === "多" ? "#34D399" : "#FB923C" }]}>{pos.side} {pos.size}</Text>
+        {/* Summary */}
+        <View style={ps.summaryCard}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            <View style={{ alignItems: "center" }}><Text style={ps.sumVal}>$3,060</Text><Text style={ps.sumLabel}>合约保证金</Text></View>
+            <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.06)" }} />
+            <View style={{ alignItems: "center" }}><Text style={ps.sumVal}>$2,340</Text><Text style={ps.sumLabel}>现货市值</Text></View>
+            <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.06)" }} />
+            <View style={{ alignItems: "center" }}><Text style={[ps.sumVal, { color: "#34D399" }]}>+$87.50</Text><Text style={ps.sumLabel}>今日盈亏</Text></View>
+          </View>
+        </View>
+
+        {/* Contract positions */}
+        <Text style={ps.sectionTitle}>📊 合约持仓</Text>
+        {myContractPos.map((pos, i) => (
+          <View key={i} style={ps.card}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Text style={ps.symbol}>{pos.symbol}</Text>
+                <Text style={[ps.side, { color: pos.side === "多" ? "#34D399" : "#FB923C" }]}>{pos.side}</Text>
+                <Text style={ps.lev}>{pos.leverage}</Text>
+              </View>
+              <Text style={[ps.pnl, { color: pos.unrealizedPnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{pos.unrealizedPnl} ({pos.pnlPct})</Text>
             </View>
-            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={ps.posLabel}>未实现盈亏</Text>
-              <Text style={[ps.posPnl, { color: pos.pnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{pos.pnl} ({pos.pnlPct})</Text>
+            <View style={ps.detailRow}>
+              <View style={ps.detail}><Text style={ps.dLabel}>仓位</Text><Text style={ps.dVal}>{pos.size}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>开仓价</Text><Text style={ps.dVal}>${pos.entryPrice}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>标记价</Text><Text style={ps.dVal}>${pos.markPrice}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>强平</Text><Text style={[ps.dVal, { color: "#FB923C" }]}>${pos.liqPrice}</Text></View>
+            </View>
+            <View style={ps.detailRow}>
+              <View style={ps.detail}><Text style={ps.dLabel}>保证金</Text><Text style={ps.dVal}>{pos.margin}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>止盈</Text><Text style={[ps.dVal, { color: "#34D399" }]}>${pos.tp}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>止损</Text><Text style={[ps.dVal, { color: "#FB923C" }]}>${pos.sl}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>资金费率</Text><Text style={ps.dVal}>{pos.fundingRate}</Text></View>
             </View>
           </View>
         ))}
-        <View style={ps.posCard}>
-          <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", textAlign: "center" }}>📊 总权益: $1,245.80</Text>
-          <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", textAlign: "center", marginTop: 4 }}>今日盈亏: +$27.30</Text>
-        </View>
+
+        {/* Spot positions */}
+        <Text style={[ps.sectionTitle, { marginTop: 8 }]}>💎 现货持仓</Text>
+        {mySpotPos.map((pos, i) => (
+          <View key={i} style={ps.card}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Text style={{ fontSize: 15, fontWeight: "800", color: "#fff" }}>{pos.symbol}</Text>
+                <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", backgroundColor: "rgba(255,255,255,0.04)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>{pos.chain}</Text>
+              </View>
+              <Text style={[ps.pnl, { color: pos.pnl.startsWith("+") ? "#34D399" : pos.pnl === "$0.00" ? "rgba(255,255,255,0.4)" : "#FB923C" }]}>{pos.pnl} ({pos.pnlPct})</Text>
+            </View>
+            <View style={ps.detailRow}>
+              <View style={ps.detail}><Text style={ps.dLabel}>数量</Text><Text style={ps.dVal}>{pos.amount}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>现价</Text><Text style={ps.dVal}>{pos.price}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>市值</Text><Text style={ps.dVal}>{pos.value}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>成本</Text><Text style={ps.dVal}>{pos.cost}</Text></View>
+            </View>
+          </View>
+        ))}
       </ScrollView>
       )}
 
@@ -133,18 +180,21 @@ export default function CommunityScreen() {
                 ))}
               </View>
             ) : (
-              POSITIONS.map((pos, i) => (
-                <TouchableOpacity key={i} style={m.posRow} onPress={() => sharePosition(pos)}>
-                  <View>
-                    <Text style={m.posSym}>{pos.symbol}</Text>
-                    <Text style={{ fontSize: 12, color: pos.side === "多" ? "#34D399" : "#FB923C", fontWeight: "600" }}>{pos.side} {pos.size}</Text>
-                  </View>
-                  <View style={{ alignItems: "flex-end" }}>
-                    <Text style={{ fontSize: 15, fontWeight: "700", color: pos.pnl.startsWith("+") ? "#34D399" : "#FB923C" }}>{pos.pnl}</Text>
-                    <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{pos.pnlPct}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))
+              <>
+                <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>合约持仓</Text>
+                {myContractPos.map((pos, i) => (
+                  <TouchableOpacity key={"c"+i} style={m.posRow} onPress={() => sharePosition(pos)}>
+                    <View>
+                      <Text style={m.posSym}>{pos.symbol}</Text>
+                      <Text style={{ fontSize: 12, color: pos.side === "多" ? "#34D399" : "#FB923C", fontWeight: "600" }}>{pos.side} {pos.leverage}</Text>
+                    </View>
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text style={{ fontSize: 15, fontWeight: "700", color: pos.unrealizedPnl.startsWith("+") ? "#34D399" : "#FB923C" }}>{pos.unrealizedPnl}</Text>
+                      <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{pos.pnlPct}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </>
             )}
           </View>
         </View>
@@ -271,13 +321,20 @@ const cs = StyleSheet.create({
 // Position view tab
 const ps = StyleSheet.create({
   posScroll: { flex: 1 },
-  posContent: { padding: 16 },
-  posTitle: { fontSize: 16, fontWeight: "800", color: "#fff", marginBottom: 14 },
-  posCard: { backgroundColor: "rgba(35,10,62,0.5)", borderRadius: 16, borderWidth: 0.5, borderColor: "rgba(192,99,255,0.12)", padding: 14, marginBottom: 10 },
-  posSymbol: { fontSize: 15, fontWeight: "800", color: "#fff" },
-  posSide: { fontSize: 12, fontWeight: "700" },
-  posLabel: { fontSize: 12, color: "rgba(255,255,255,0.4)" },
-  posPnl: { fontSize: 14, fontWeight: "700" },
+  posContent: { padding: 16, paddingBottom: 40 },
+  summaryCard: { backgroundColor: "rgba(35,10,62,0.6)", borderRadius: 18, borderWidth: 0.5, borderColor: "rgba(192,99,255,0.15)", padding: 18, marginBottom: 20 },
+  sumVal: { fontSize: 20, fontWeight: "900", color: "#fff" },
+  sumLabel: { fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 4 },
+  sectionTitle: { fontSize: 14, fontWeight: "700", color: "#fff", marginBottom: 10 },
+  card: { backgroundColor: "rgba(35,10,62,0.4)", borderRadius: 16, borderWidth: 0.5, borderColor: "rgba(192,99,255,0.1)", padding: 14, marginBottom: 10 },
+  symbol: { fontSize: 15, fontWeight: "800", color: "#fff" },
+  side: { fontSize: 11, fontWeight: "700", backgroundColor: "rgba(255,255,255,0.05)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  lev: { fontSize: 10, fontWeight: "700", color: "#F7D56D", backgroundColor: "rgba(247,213,109,0.1)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  pnl: { fontSize: 14, fontWeight: "700" },
+  detailRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 8 },
+  detail: { alignItems: "center" },
+  dLabel: { fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 2 },
+  dVal: { fontSize: 11, fontWeight: "600", color: "rgba(255,255,255,0.7)" },
 });
 
 // Position message card
