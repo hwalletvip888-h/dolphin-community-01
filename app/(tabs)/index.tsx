@@ -108,7 +108,7 @@ export default function HomeScreen() {
         {AGENTS.map((a) => {
           const ok = level >= a.unlockLevel;
           return (
-            <TouchableOpacity key={a.id} style={[s.agentCard, { borderColor: ok ? a.color + "30" : "rgba(255,255,255,0.06)" }]} onPress={() => ok && router.push(`/chat/${a.id}?msg=${encodeURIComponent("你好")}`)} activeOpacity={ok ? 0.7 : 1}>
+            <TouchableOpacity key={a.id} style={[s.agentCard, { borderColor: ok ? a.color + "30" : "rgba(255,255,255,0.06)" }]} onPress={() => ok && router.push(`/chat/${a.id}`)} activeOpacity={ok ? 0.7 : 1}>
               <View style={[s.agentAv, { borderColor: ok ? a.color : "rgba(255,255,255,0.15)" }, !ok && { opacity: 0.4 }]}>
                 <Text style={[s.agentAvT, { color: ok ? a.color : "rgba(255,255,255,0.3)" }]}>{a.name[0]}</Text>
               </View>
