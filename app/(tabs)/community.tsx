@@ -104,12 +104,17 @@ export default function CommunityScreen() {
       <ScrollView style={ps.posScroll} contentContainerStyle={ps.posContent}>
         {/* Summary */}
         <View style={ps.summaryCard}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-            <View style={{ alignItems: "center" }}><Text style={ps.sumVal}>${totalZhuge.toLocaleString()}</Text><Text style={ps.sumLabel}>诸葛策略</Text></View>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 14 }}>
+            <View style={{ alignItems: "center" }}><Text style={[ps.sumVal, { color: "#34D399" }]}>+$42.50</Text><Text style={ps.sumLabel}>今日收益</Text></View>
             <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.06)" }} />
-            <View style={{ alignItems: "center" }}><Text style={ps.sumVal}>${totalOnchain.toLocaleString()}</Text><Text style={ps.sumLabel}>链上猎手</Text></View>
+            <View style={{ alignItems: "center" }}><Text style={[ps.sumVal, { color: "#F7D56D" }]}>+$3,280</Text><Text style={ps.sumLabel}>累计收益</Text></View>
             <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.06)" }} />
-            <View style={{ alignItems: "center" }}><Text style={ps.sumVal}>${totalWealth.toLocaleString()}</Text><Text style={ps.sumLabel}>稳盈管家</Text></View>
+            <View style={{ alignItems: "center" }}><Text style={ps.sumVal}>${(totalZhuge + totalOnchain + totalWealth).toLocaleString()}</Text><Text style={ps.sumLabel}>总仓位价值</Text></View>
+          </View>
+          <View style={{ borderTopWidth: 0.5, borderColor: "rgba(255,255,255,0.06)", paddingTop: 12, flexDirection: "row", justifyContent: "space-between" }}>
+            <View style={{ alignItems: "center" }}><Text style={ps.sumSmall}>${totalZhuge.toLocaleString()}</Text><Text style={ps.sumLabel}>诸葛策略</Text></View>
+            <View style={{ alignItems: "center" }}><Text style={ps.sumSmall}>${totalOnchain.toLocaleString()}</Text><Text style={ps.sumLabel}>链上猎手</Text></View>
+            <View style={{ alignItems: "center" }}><Text style={ps.sumSmall}>${totalWealth.toLocaleString()}</Text><Text style={ps.sumLabel}>稳盈管家</Text></View>
           </View>
         </View>
 
@@ -354,6 +359,7 @@ const ps = StyleSheet.create({
   posContent: { padding: 16, paddingBottom: 40 },
   summaryCard: { backgroundColor: "rgba(35,10,62,0.6)", borderRadius: 18, borderWidth: 0.5, borderColor: "rgba(192,99,255,0.15)", padding: 18, marginBottom: 20 },
   sumVal: { fontSize: 20, fontWeight: "900", color: "#fff" },
+  sumSmall: { fontSize: 14, fontWeight: "700", color: "#fff" },
   sumLabel: { fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 4 },
   sectionTitle: { fontSize: 14, fontWeight: "700", color: "#fff", marginBottom: 10 },
   card: { backgroundColor: "rgba(35,10,62,0.4)", borderRadius: 16, borderWidth: 0.5, borderColor: "rgba(192,99,255,0.1)", padding: 14, marginBottom: 10 },
