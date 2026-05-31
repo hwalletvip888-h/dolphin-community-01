@@ -21,7 +21,7 @@ export const AGENTS: AgentConfig[] = [
     id: "zhuge", name: "诸葛策略", title: "合约军师", quote: "运筹帷幄，弹无虚发",
     desc: "OKX 合约策略师。HURST 趋势 + 布林带 + Pivot 三策略共振",
     skills: ["BTC/ETH/SOL分析", "HURST趋势", "多币信号", "VBT回测"],
-    color: "#C084FC", unlockLevel: 5,
+    color: "#C084FC", unlockLevel: 1,
     welcome: "运筹帷幄，弹无虚发。BTC/ETH/SOL 三大主力合约深度分析。说出币种，我给你作战计划。",
     questions: ["BTC 深度分析", "多币信号扫描", "策略回测"],
   },
