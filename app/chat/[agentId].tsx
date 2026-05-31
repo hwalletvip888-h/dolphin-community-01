@@ -35,7 +35,8 @@ export default function ChatScreen() {
   const { agentId, msg } = useLocalSearchParams<{ agentId: string; msg?: string }>();
   const router = useRouter();
   const agent = AGENTS.find((a) => a.id === agentId) || AGENTS[0];
-  const { messages, isTyping, send, clear, cancel } = useChat();
+  const { getMessages, getConvId, isTyping, send, clearAgent, cancel } = useChat();
+  const messages = getMessages();
   const { total } = useAuth();
   const [input, setInput] = useState("");
   const [showTrade, setShowTrade] = useState(false);
@@ -51,13 +52,7 @@ export default function ChatScreen() {
   const prevAgent = useRef("");
   const isEmpty = messages.length === 0;
 
-  // 首次进入或切换 Agent → 清空。回退再进入同一 Agent → 保留历史。
-  useEffect(() => {
-    if (prevAgent.current !== agentId) {
-      if (prevAgent.current) clear(); // 切换 Agent 时清空
-      prevAgent.current = agentId;
-    }
-  }, [agentId]);
+  useEffect(() => { if (prevAgent.current && prevAgent.current !== agentId) { clearAgent(prevAgent.current); } prevAgent.current = agentId; }, [agentId]);
 
   // Auto-send message from home page signal tap
   useEffect(() => {
