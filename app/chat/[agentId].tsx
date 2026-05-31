@@ -8,12 +8,9 @@ import { Send, ChevronLeft, Sparkles, StopCircle, X } from "lucide-react-native"
 import { useChat } from "@/src/stores/chat";
 import { AGENTS } from "@/src/data/agents";
 import { CardRenderer } from "@/src/ui/cards/CardRenderer";
-import { Markdown } from "@/src/ui/Markdown";
 import { TradeConfirmCard } from "@/src/ui/cards/TradeConfirmCard";
-import type { Message } from "@/src/types";
-
-// ── Rich text ──
 import { Markdown } from "@/src/ui/Markdown";
+import type { Message } from "@/src/types";
 
 // ── Typing dots ──
 function TypingIndicator() {
