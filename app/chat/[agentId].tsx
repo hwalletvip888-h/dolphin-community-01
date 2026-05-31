@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
-  StyleSheet, KeyboardAvoidingView, Platform,
+  StyleSheet, KeyboardAvoidingView, Platform, Modal,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Send, ChevronLeft, Sparkles, StopCircle } from "lucide-react-native";
+import { Send, ChevronLeft, Sparkles, StopCircle, X } from "lucide-react-native";
 import { useChat } from "@/src/stores/chat";
 import { AGENTS } from "@/src/data/agents";
 import { CardRenderer } from "@/src/ui/cards/CardRenderer";
@@ -37,6 +37,7 @@ export default function ChatScreen() {
   const agent = AGENTS.find((a) => a.id === agentId) || AGENTS[0];
   const { messages, isTyping, send, clear, cancel } = useChat();
   const [input, setInput] = useState("");
+  const [showTrade, setShowTrade] = useState(false);
   const listRef = useRef<FlatList<Message>>(null);
   const autoSent = useRef(false);
   const isEmpty = messages.length === 0;
@@ -81,14 +82,17 @@ export default function ChatScreen() {
               <Markdown text={item.content} />
             </View>
             {item.cards?.map((c, i) => <View key={i} style={{ marginTop: 10 }}><CardRenderer data={c} /></View>)}
-            {/* Quick actions below agent replies */}
+            {/* Agent action buttons */}
             {item.content && item.content.length > 20 && (
               <View style={ms.actions}>
                 <TouchableOpacity style={ms.actionBtn} onPress={() => send("详细说说", agentId)}>
                   <Text style={ms.actionT}>展开分析</Text>
                 </TouchableOpacity>
-                {agentId === "zhuge" && <TouchableOpacity style={[ms.actionBtn, ms.actionPrimary]} onPress={() => send("帮我跟单这个策略", agentId)}><Text style={[ms.actionT, { color: "#090012" }]}>跟单</Text></TouchableOpacity>}
-                {agentId === "onchain" && <TouchableOpacity style={[ms.actionBtn, ms.actionPrimary]} onPress={() => send("帮我跟单这个信号", agentId)}><Text style={[ms.actionT, { color: "#090012" }]}>跟单</Text></TouchableOpacity>}
+                {(agentId === "zhuge" || agentId === "onchain") ? (
+                  <TouchableOpacity style={[ms.actionBtn, ms.actionPrimary]} onPress={() => setShowTrade(true)}>
+                    <Text style={[ms.actionT, { color: "#090012" }]}>跟单交易</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             )}
           </View>
@@ -181,6 +185,40 @@ export default function ChatScreen() {
         )}
       </View>
     </KeyboardAvoidingView>
+
+      {/* Trade confirmation modal */}
+      <Modal visible={showTrade} transparent animationType="slide" onRequestClose={() => setShowTrade(false)}>
+        <View style={tm.overlay}>
+          <View style={tm.sheet}>
+            <View style={tm.head}>
+              <Text style={tm.title}>确认交易</Text>
+              <TouchableOpacity onPress={() => setShowTrade(false)}><X size={20} color="rgba(255,255,255,0.5)" /></TouchableOpacity>
+            </View>
+            <View style={tm.detailRow}>
+              <View style={tm.detail}><Text style={tm.dLabel}>交易对</Text><Text style={tm.dVal}>BTC/USDT</Text></View>
+              <View style={tm.detail}><Text style={tm.dLabel}>方向</Text><Text style={[tm.dVal, { color: "#34D399" }]}>做多</Text></View>
+              <View style={tm.detail}><Text style={tm.dLabel}>杠杆</Text><Text style={tm.dVal}>10x</Text></View>
+            </View>
+            <View style={tm.detailRow}>
+              <View style={tm.detail}><Text style={tm.dLabel}>金额</Text><Text style={tm.dVal}>100 USDT</Text></View>
+              <View style={tm.detail}><Text style={tm.dLabel}>止盈</Text><Text style={[tm.dVal, { color: "#34D399" }]}>+10%</Text></View>
+              <View style={tm.detail}><Text style={tm.dLabel}>止损</Text><Text style={[tm.dVal, { color: "#FB923C" }]}>-5%</Text></View>
+            </View>
+            <View style={tm.warnBox}>
+              <Text style={tm.warnText}>⚠️ 合约交易有风险，请根据自身风险承受能力谨慎操作</Text>
+            </View>
+            <View style={tm.btnRow}>
+              <TouchableOpacity style={tm.cancelBtn} onPress={() => setShowTrade(false)}>
+                <Text style={tm.cancelText}>取消</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={tm.confirmBtn} onPress={() => { setShowTrade(false); send("确认开仓 BTC 做多 100U 10x", agentId); }}>
+                <Text style={tm.confirmText}>确认开仓</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
@@ -234,4 +272,23 @@ const ws = StyleSheet.create({
   qRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 8 },
   qBtn: { backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 16, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.07)", paddingHorizontal: 14, paddingVertical: 10 },
   qT: { fontSize: 13, color: "rgba(255,255,255,0.6)" },
+});
+
+// Trade modal
+const tm = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: "#150530", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  head: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  title: { fontSize: 18, fontWeight: "800", color: "#F7D56D" },
+  detailRow: { flexDirection: "row", marginBottom: 12, gap: 8 },
+  detail: { flex: 1, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 12, alignItems: "center" },
+  dLabel: { fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 4 },
+  dVal: { fontSize: 14, fontWeight: "700", color: "#fff" },
+  warnBox: { backgroundColor: "rgba(251,146,60,0.08)", borderRadius: 12, padding: 12, marginBottom: 16 },
+  warnText: { fontSize: 11, color: "rgba(251,146,60,0.7)", lineHeight: 16, textAlign: "center" },
+  btnRow: { flexDirection: "row", gap: 10 },
+  cancelBtn: { flex: 1, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 14, paddingVertical: 14, alignItems: "center" },
+  cancelText: { fontSize: 15, fontWeight: "600", color: "rgba(255,255,255,0.5)" },
+  confirmBtn: { flex: 1, backgroundColor: "#34D399", borderRadius: 14, paddingVertical: 14, alignItems: "center" },
+  confirmText: { fontSize: 15, fontWeight: "700", color: "#090012" },
 });
