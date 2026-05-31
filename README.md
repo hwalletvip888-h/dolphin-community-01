@@ -156,6 +156,66 @@ dolphin-community/
 - **多用户就绪** — JWT 认证、会话隔离、对话按用户 scope
 - **生产级安全** — CSP、XSS 防护、API Key 认证、Rate Limit
 
+## 🎯 策略竞技场 · 链上预测市场
+
+社区量化策略 + 链上预测竞猜，在 X Layer 上构建的一套完整预测经济。
+
+### 机制
+
+三个 AI 量化策略账户独立运行，全程透明，任何人无法更改：
+
+| 策略 | 杠杆 | 指标 | 风格 |
+|------|------|------|------|
+| 🛡️ 稳健·BTC | 5x | EMA10/30 金叉死叉 | 趋势跟踪，分批建仓 |
+| ⚖️ 进取·BTC | 10x | 布林带(20,2) 均值回归 | 平衡进攻与防守 |
+| 🚀 拼搏·BTC | 20x | RSI-14 极值反转 | 集中仓位，抓极端行情 |
+
+每个结算周期（自然月），社区用户用 USDT 押注任一策略的盈亏：
+
+```
+8 月 1 日快照净值 → 8 月 31 日对比
+策略赚了 → 押 YES 的分奖池
+策略亏了 → 押 NO 的分奖池
+```
+
+赔率由押注分布实时决定——押的人少赔率高，押的人多赔率低。跟 Polymarket 一样的对赌池模型。
+
+### 智能合约
+
+合约已部署到 **X Layer 测试网**，源码已验证:
+
+```
+DolphinPrediction @ X Layer Testnet
+  合约: 0xd6F2AecF52E845eC5832F75e0790b9BC1d4E965f
+  浏览器: https://www.oklink.com/x-layer-testnet
+```
+
+**合约接口**（基于 OpenZeppelin v5，8 个测试全通过）:
+
+| 函数 | 说明 |
+|------|------|
+| `createMarket(name, endTime)` | 管理员创建预测市场 |
+| `bet(marketId, isYes, amount)` | 用户押注（10-500 USDT） |
+| `resolve(marketId, outcome)` | 到期结算 |
+| `claim(marketId)` | 赢家按比例领取奖励 |
+| `getOdds(marketId)` | 查询实时赔率 |
+
+**安全特性**: Ownable 权限控制、ReentrancyGuard 防重入、SafeERC20 转账、emergencyWithdraw 应急提取。不依赖任何外部协议，gas 高效。
+
+### 为什么是 X Layer
+
+- OKX 官方 L2，与 Agent Wallet 原生互通
+- 低 gas 费，高频押注无摩擦
+- 已部署验证，链上永久可查——这是我们在 X Layer 的建设履历
+
+### 社区价值
+
+策略竞技场不是单纯的博彩——它是：
+
+1. **量化策略的社会化验证** — 三个策略公开跑，数据透明，社区用脚投票
+2. **用户粘性引擎** — 预测 + 跟单 + 讨论，从旁观者变参与者
+3. **X Layer 生态贡献** — 链上合约、真实交易量、社区活跃度
+
 ## 环境变量
 
 部署需要设置以下环境变量：
