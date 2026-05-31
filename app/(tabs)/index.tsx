@@ -15,10 +15,10 @@ const ADDRESSES = [
 export default function HomeScreen() {
   const router = useRouter();
   const { total, level, refreshWallet, loggedIn } = useAuth();
-  const { tickers, candles, start: startWS, loadCandles } = useMarket();
+  const { tickers, candles, memeTokens, start: startWS, loadCandles, loadMemeTokens } = useMarket();
   const [showDeposit, setShowDeposit] = useState(false);
   useEffect(() => { if (loggedIn) refreshWallet(); }, [loggedIn]);
-  useEffect(() => { startWS(); loadCandles(); }, []);
+  useEffect(() => { startWS(); loadCandles(); loadMemeTokens(); }, []);
 
   const mkLabels: Record<string, string> = { "BTC-USDT-SWAP": "BTC", "ETH-USDT-SWAP": "ETH", "SOL-USDT-SWAP": "SOL" };
 
@@ -116,25 +116,27 @@ export default function HomeScreen() {
         })}
       </ScrollView>
 
-      {/* 精选信号 — 链上猎手推荐 */}
+      {/* 链上飙升 — OnchainOS memepump 真实数据 */}
       <View style={s.sectionHead}>
-        <Text style={s.sectionTitle}>精选信号</Text>
-        <Text style={s.moreLink}>链上猎手</Text>
+        <Text style={s.sectionTitle}>链上飙升</Text>
+        <Text style={s.moreLink}>OnchainOS</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.cardRow}>
-        {[
-          { symbol: "PEPE", price: "$0.00215", chg: "+82%", reason: "鲸鱼持续建仓", msg: "帮我分析 PEPE，最近鲸鱼一直在买" },
-          { symbol: "WIF", price: "$2.98", chg: "+22%", reason: "聪明钱信号", msg: "WIF 检测到聪明钱买入，帮我看看" },
-          { symbol: "DOGE", price: "$0.42", chg: "+5%", reason: "大额转账异动", msg: "DOGE 有大额转账，帮我分析一下" },
-        ].map((c, i) => {
-          const isUp = c.chg.startsWith("+");
+        {(memeTokens.length > 0 ? memeTokens : [
+          { symbol: "PEPE", name: "Pepe", chain: "Solana", price: "—", changePct: "0", volume24h: "—", marketCap: "—" },
+          { symbol: "WIF", name: "DogWifHat", chain: "Solana", price: "—", changePct: "0", volume24h: "—", marketCap: "—" },
+          { symbol: "BONK", name: "Bonk", chain: "Solana", price: "—", changePct: "0", volume24h: "—", marketCap: "—" },
+        ]).slice(0, 8).map((c, i) => {
+          const chg = parseFloat(c.changePct || "0");
+          const isUp = chg >= 0;
+          const priceStr = c.price !== "—" ? (parseFloat(c.price) < 0.01 ? `$${parseFloat(c.price).toFixed(8)}` : `$${parseFloat(c.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`) : "—";
           return (
-          <TouchableOpacity key={i} style={s.pickCard} onPress={() => router.push(`/chat/onchain?msg=${encodeURIComponent(c.msg)}`)} activeOpacity={0.85}>
+          <TouchableOpacity key={i} style={s.pickCard} onPress={() => router.push(`/chat/onchain?msg=${encodeURIComponent("帮我分析 OnchainOS 飙升榜上的 " + c.symbol)}`)} activeOpacity={0.85}>
             <View style={s.pickBadge}><Text style={s.pickBadgeT}>{c.symbol[0]}</Text></View>
             <Text style={s.pickSym}>{c.symbol}</Text>
-            <Text style={s.pickPrice}>{c.price}</Text>
-            <Text style={[s.pickChg, { color: isUp ? "#34D399" : "#FB923C" }]}>{c.chg}</Text>
-            <View style={s.pickReason}><Text style={s.pickReasonT}>{c.reason}</Text></View>
+            <Text style={s.pickPrice}>{priceStr}</Text>
+            <Text style={[s.pickChg, { color: isUp ? "#34D399" : "#FB923C" }]}>{isUp ? "+" : ""}{chg.toFixed(1)}%</Text>
+            <View style={s.pickReason}><Text style={s.pickReasonT}>{c.chain}</Text></View>
           </TouchableOpacity>
         );
         })}

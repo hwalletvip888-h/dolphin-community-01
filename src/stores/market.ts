@@ -1,23 +1,25 @@
 import { create } from "zustand";
 import { subscribe, fetchCandles, type TickerData, type CandleData, type FundingData } from "@/src/services/okx-ws";
 
-export interface HotToken {
-  instId: string;
+export interface MemeToken {
   symbol: string;
-  last: string;
+  name: string;
+  chain: string;
+  price: string;
   changePct: string;
-  vol24h: string;
+  volume24h: string;
+  marketCap: string;
 }
 
 interface MarketState {
   tickers: Record<string, TickerData>;
   candles: Record<string, number[]>;
   funding: Record<string, FundingData>;
-  hotTokens: HotToken[];
+  memeTokens: MemeToken[];
   connected: boolean;
   start: () => void;
   loadCandles: () => Promise<void>;
-  loadHotTokens: () => Promise<void>;
+  loadMemeTokens: () => Promise<void>;
 }
 
 const PAIRS = ["BTC-USDT-SWAP", "ETH-USDT-SWAP", "SOL-USDT-SWAP"];
@@ -27,7 +29,7 @@ export const useMarket = create<MarketState>((set, get) => ({
   tickers: {},
   candles: {},
   funding: {},
-  hotTokens: [],
+  memeTokens: [],
   connected: false,
 
   start: () => {
@@ -70,25 +72,27 @@ export const useMarket = create<MarketState>((set, get) => ({
     set((s) => ({ candles: { ...s.candles, ...map } }));
   },
 
-  loadHotTokens: async () => {
+  loadMemeTokens: async () => {
     try {
-      // OKX top volume swap tickers
-      const r = await fetch("https://www.okx.com/api/v5/market/tickers?instType=SWAP&limit=20");
+      // OnchainOS memepump scan via MCP
+      const r = await fetch("http://154.12.55.135:3000/api/h/v1/meme/scan?chain=solana&limit=20", { signal: AbortSignal.timeout(10000) });
       const d = await r.json();
-      if (d.code === "0" && d.data) {
-        const tokens: HotToken[] = d.data
-          .filter((t: any) => t.instId.endsWith("-USDT-SWAP"))
-          .sort((a: any, b: any) => parseFloat(b.vol24h) - parseFloat(a.vol24h))
-          .slice(0, 8)
-          .map((t: any) => ({
-            instId: t.instId,
-            symbol: t.instId.replace("-USDT-SWAP", ""),
-            last: t.last,
-            changePct: (((parseFloat(t.last) - parseFloat(t.open24h || t.last)) / parseFloat(t.open24h || t.last)) * 100).toFixed(2),
-            vol24h: t.vol24h,
-          }));
-        set({ hotTokens: tokens });
+      const tokens: MemeToken[] = [];
+      const raw = d?.data || d?.tokens || d?.results || [];
+      if (Array.isArray(raw)) {
+        for (const t of raw.slice(0, 8)) {
+          tokens.push({
+            symbol: t.symbol || t.token || "?",
+            name: t.name || t.symbol || "",
+            chain: t.chain || "Solana",
+            price: t.price || "—",
+            changePct: t.change || t.change24h || "0",
+            volume24h: t.volume24h || t.volume || "0",
+            marketCap: t.marketCap || t.mc || "0",
+          });
+        }
       }
+      if (tokens.length > 0) set({ memeTokens: tokens });
     } catch {}
   },
 }));
