@@ -1,8 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, ScrollView,
   StyleSheet, KeyboardAvoidingView, Platform, Modal,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { Send, Smile, Plus, Copy, Zap, X, CheckCircle, Share2, TrendingUp, BarChart3, Trophy, Gift, Users } from "lucide-react-native";
 import { useAuth } from "@/src/stores/auth";
 
@@ -42,19 +43,19 @@ export default function CommunityScreen() {
   const [input, setInput] = useState("");
   const [showMenu, setShowMenu] = useState(false);
   const [menuPage, setMenuPage] = useState<"main" | "position">("main");
-  const [tab, setTab] = useState<"chat" | "positions">("positions");
+  const [tab, setTab] = useState<"chat" | "signals">("chat");
+  const [signals, setSignals] = useState<any[]>([]);
+  const [signalsLoading, setSignalsLoading] = useState(false);
   const { level } = useAuth();
+  const router = useRouter();
   const listRef = useRef<FlatList<ChatMsg>>(null);
-  // Mock positions for "current positions" tab
-  const myZhuge = ZHUGE_POS;
-  const myOnchain = ONCHAIN_POS;
-  const myWealth = WEALTH_POS;
 
-  const val = (s: string) => parseFloat(s.replace(/[$,]/g, ""));
-  const totalZhuge = myZhuge.reduce((s, p) => s + val(p.usdValue), 0);
-  const totalOnchain = myOnchain.reduce((s, p) => s + val(p.usdValue), 0);
-  const totalWealth = myWealth.reduce((s, p) => s + val(p.usdValue), 0);
-  const totalPnl = myZhuge.reduce((s, p) => s + val(p.pnl), 0) + myOnchain.reduce((s, p) => s + val(p.pnl), 0);
+  useEffect(() => { if (tab === "signals") fetchSignals(); }, [tab]);
+  const fetchSignals = async () => {
+    setSignalsLoading(true);
+    try { const d = await (await fetch("https://api.hvip.ink/api/signals", { signal: AbortSignal.timeout(8000) })).json(); setSignals(d.signals || []); } catch {}
+    setSignalsLoading(false);
+  };
 
   const addMsg = (msg: ChatMsg) => { setMsgs((p) => [msg, ...p]); setShowMenu(false); setMenuPage("main"); };
 
@@ -91,8 +92,8 @@ export default function CommunityScreen() {
           <TouchableOpacity style={[s.tab, tab === "chat" && s.tabActive]} onPress={() => setTab("chat")}>
             <Text style={[s.tabText, tab === "chat" && s.tabTextActive]}>社区群聊</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[s.tab, tab === "positions" && s.tabActive]} onPress={() => setTab("positions")}>
-            <Text style={[s.tabText, tab === "positions" && s.tabTextActive]}>信号广场</Text>
+          <TouchableOpacity style={[s.tab, tab === "signals" && s.tabActive]} onPress={() => setTab("signals")}>
+            <Text style={[s.tabText, tab === "signals" && s.tabTextActive]}>信号广场</Text>
           </TouchableOpacity>
         </View>
         {tab === "chat" && <View style={s.hRow}><View style={s.hDot} /><Text style={s.hSub}>128 在线</Text></View>}
@@ -101,89 +102,29 @@ export default function CommunityScreen() {
       {tab === "chat" ? (
       <FlatList ref={listRef} data={msgs} keyExtractor={(m) => m.id} renderItem={renderItem} contentContainerStyle={s.list} inverted keyboardShouldPersistTaps="handled" />
       ) : (
-      <ScrollView style={ps.posScroll} contentContainerStyle={ps.posContent}>
-        {/* Summary */}
-        <View style={ps.summaryCard}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 14 }}>
-            <View style={{ alignItems: "center" }}><Text style={[ps.sumVal, { color: "#34D399" }]}>+$42.50</Text><Text style={ps.sumLabel}>今日收益</Text></View>
-            <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.06)" }} />
-            <View style={{ alignItems: "center" }}><Text style={[ps.sumVal, { color: "#F7D56D" }]}>+$3,280</Text><Text style={ps.sumLabel}>累计收益</Text></View>
-            <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.06)" }} />
-            <View style={{ alignItems: "center" }}><Text style={ps.sumVal}>${(totalZhuge + totalOnchain + totalWealth).toLocaleString()}</Text><Text style={ps.sumLabel}>总仓位价值</Text></View>
-          </View>
-          <View style={{ borderTopWidth: 0.5, borderColor: "rgba(255,255,255,0.06)", paddingTop: 12, flexDirection: "row", justifyContent: "space-between" }}>
-            <View style={{ alignItems: "center" }}><Text style={ps.sumSmall}>${totalZhuge.toLocaleString()}</Text><Text style={ps.sumLabel}>诸葛策略</Text></View>
-            <View style={{ alignItems: "center" }}><Text style={ps.sumSmall}>${totalOnchain.toLocaleString()}</Text><Text style={ps.sumLabel}>链上猎手</Text></View>
-            <View style={{ alignItems: "center" }}><Text style={ps.sumSmall}>${totalWealth.toLocaleString()}</Text><Text style={ps.sumLabel}>稳盈管家</Text></View>
-          </View>
-        </View>
-
-        {/* 诸葛策略仓位 */}
-        <Text style={ps.sectionTitle}>📊 诸葛策略仓位</Text>
-        {myZhuge.map((pos) => (
-          <View key={pos.id} style={ps.card}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={sg.list}>
+        {signalsLoading ? <Text style={sg.loading}>加载中...</Text> :
+          signals.filter((t: any) => (t.securityScore || 0) >= 0).slice(0, 20).map((t: any, i: number) => {
+          const score = t.securityScore || 0;
+          const color = score >= 80 ? "#34D399" : score >= 50 ? "#F7D56D" : "#FB923C";
+          const label = score >= 80 ? "安全" : score >= 50 ? "注意" : "危险";
+          return (
+          <TouchableOpacity key={i} style={sg.card} onPress={() => router.push(`/chat/onchain?msg=分析 ${t.symbol}`)} activeOpacity={0.7}>
+            <View style={[sg.avatar, { backgroundColor: color + "15" }]}><Text style={[sg.avatarT, { color }]}>{t.symbol?.[0]||"?"}</Text></View>
+            <View style={{ flex: 1 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Text style={ps.symbol}>{pos.symbol}</Text>
-                <Text style={[ps.side, { color: pos.side === "多" ? "#34D399" : "#FB923C" }]}>{pos.side}</Text>
-                <Text style={ps.lev}>{pos.leverage}</Text>
+                <Text style={sg.sym}>{t.symbol}</Text>
+                <View style={[sg.badge, { backgroundColor: color + "15" }]}><Text style={[sg.badgeT, { color }]}>{label} {Math.round(score)}分</Text></View>
               </View>
-              <Text style={[ps.pnl, { color: pos.pnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{pos.pnl} ({pos.pnlPct})</Text>
+              <Text style={sg.meta}>市值 {t.marketCap ? (parseFloat(t.marketCap)>1e6?(parseFloat(t.marketCap)/1e6).toFixed(1)+"M":"$"+parseFloat(t.marketCap).toFixed(0)) : "—"}</Text>
             </View>
-            <View style={ps.detailRow}>
-              <View style={ps.detail}><Text style={ps.dLabel}>仓位价值</Text><Text style={ps.dVal}>{pos.usdValue}</Text></View>
-              <View style={ps.detail}><Text style={ps.dLabel}>开仓价</Text><Text style={ps.dVal}>${pos.entryPrice}</Text></View>
-              <View style={ps.detail}><Text style={ps.dLabel}>标记价</Text><Text style={ps.dVal}>${pos.markPrice}</Text></View>
-              <View style={ps.detail}><Text style={ps.dLabel}>强平</Text><Text style={[ps.dVal, { color: "#FB923C" }]}>${pos.liqPrice}</Text></View>
+            <View style={sg.btns}>
+              <TouchableOpacity style={sg.btn}><Text style={sg.btnT}>分析</Text></TouchableOpacity>
+              <TouchableOpacity style={[sg.btn, sg.btnPrimary]}><Text style={[sg.btnT, { color: "#090012" }]}>跟单</Text></TouchableOpacity>
             </View>
-            <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 6 }}>策略: {pos.strategy}</Text>
-            <TouchableOpacity style={ps.closeBtn} activeOpacity={0.7}><Text style={ps.closeBtnText}>平仓</Text></TouchableOpacity>
-          </View>
-        ))}
-
-        {/* 链上猎手仓位 */}
-        <Text style={[ps.sectionTitle, { marginTop: 8 }]}>🔍 链上猎手仓位</Text>
-        {myOnchain.map((pos) => (
-          <View key={pos.id} style={ps.card}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Text style={ps.symbol}>{pos.symbol}</Text>
-                <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", backgroundColor: "rgba(255,255,255,0.04)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 6 }}>{pos.chain}</Text>
-              </View>
-              <Text style={{ fontSize: 10, color: "rgba(167,139,250,0.6)" }}>{pos.signal} · {pos.time}</Text>
-            </View>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-              <Text style={ps.usdVal}>{pos.usdValue}</Text>
-              <Text style={[ps.pnl, { color: pos.pnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{pos.pnl} ({pos.pnlPct})</Text>
-            </View>
-            <View style={ps.detailRow}>
-              <View style={ps.detail}><Text style={ps.dLabel}>数量</Text><Text style={ps.dVal}>{pos.amount}</Text></View>
-              <View style={ps.detail}><Text style={ps.dLabel}>买入价</Text><Text style={ps.dVal}>{pos.buyPrice}</Text></View>
-              <View style={ps.detail}><Text style={ps.dLabel}>现价</Text><Text style={ps.dVal}>{pos.currentPrice}</Text></View>
-            </View>
-            <TouchableOpacity style={[ps.closeBtn, { backgroundColor: "rgba(239,68,68,0.08)", borderColor: "rgba(239,68,68,0.2)" }]} activeOpacity={0.7}><Text style={ps.closeBtnText}>卖出</Text></TouchableOpacity>
-          </View>
-        ))}
-
-        {/* 稳盈管家仓位 */}
-        <Text style={[ps.sectionTitle, { marginTop: 8 }]}>💎 稳盈管家仓位</Text>
-        {myWealth.map((pos) => (
-          <View key={pos.id} style={ps.card}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
-              <View>
-                <Text style={ps.symbol}>{pos.symbol}</Text>
-                <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>{pos.protocol} · {pos.chain} · {pos.type}</Text>
-              </View>
-              <Text style={ps.usdVal}>{pos.usdValue}</Text>
-            </View>
-            <View style={ps.detailRow}>
-              <View style={ps.detail}><Text style={ps.dLabel}>年化</Text><Text style={[ps.dVal, { color: "#34D399" }]}>{pos.apy}</Text></View>
-              <View style={ps.detail}><Text style={ps.dLabel}>已赚</Text><Text style={[ps.dVal, { color: "#34D399" }]}>{pos.earned}</Text></View>
-              <View style={ps.detail}><Text style={ps.dLabel}>天数</Text><Text style={ps.dVal}>{pos.days}天</Text></View>
-            </View>
-            <TouchableOpacity style={[ps.closeBtn, { backgroundColor: "rgba(251,146,60,0.08)", borderColor: "rgba(251,146,60,0.2)" }]} activeOpacity={0.7}><Text style={[ps.closeBtnText, { color: "#FB923C" }]}>赎回</Text></TouchableOpacity>
-          </View>
-        ))}
+          </TouchableOpacity>
+        );
+      })}
       </ScrollView>
       )}
 
@@ -217,7 +158,7 @@ export default function CommunityScreen() {
             ) : (
               <>
                 <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>合约持仓</Text>
-                {myZhuge.map((pos, i) => (
+                {[{ symbol: "BTC/USDT", side: "多", leverage: "10x", usdValue: "$4,360", entryPrice: "87,200", markPrice: "87,450", liqPrice: "78,480", pnl: "+$12.50", pnlPct: "+2.9%", strategy: "H1", id: "mock1" }].map((pos, i) => (
                   <TouchableOpacity key={"c"+i} style={m.posRow} onPress={() => sharePosition(pos)}>
                     <View>
                       <Text style={m.posSym}>{pos.symbol}</Text>
@@ -353,7 +294,24 @@ const cs = StyleSheet.create({
   disc: { fontSize: 10, color: "rgba(255,255,255,0.2)", textAlign: "center", marginTop: 8 },
 });
 
-// Position view tab
+// Signal grid
+const sg = StyleSheet.create({
+  list: { padding: 14 },
+  loading: { fontSize: 13, color: "rgba(255,255,255,0.3)", textAlign: "center", paddingTop: 30 },
+  card: { flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: 0.5, borderColor: "rgba(255,255,255,0.05)", gap: 10 },
+  avatar: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  avatarT: { fontSize: 14, fontWeight: "800" },
+  sym: { fontSize: 14, fontWeight: "700", color: "#fff" },
+  badge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  badgeT: { fontSize: 10, fontWeight: "700" },
+  meta: { fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 3 },
+  btns: { flexDirection: "row", gap: 4 },
+  btn: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+  btnPrimary: { backgroundColor: "#F7D56D" },
+  btnT: { fontSize: 11, fontWeight: "600", color: "rgba(255,255,255,0.5)" },
+});
+
+// Old position styles (unused — kept for reference)
 const ps = StyleSheet.create({
   posScroll: { flex: 1 },
   posContent: { padding: 16, paddingBottom: 40 },
