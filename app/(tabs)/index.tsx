@@ -15,10 +15,10 @@ const ADDRESSES = [
 export default function HomeScreen() {
   const router = useRouter();
   const { total, level, refreshWallet, loggedIn } = useAuth();
-  const { tickers, candles, funding, start: startWS, loadCandles } = useMarket();
+  const { tickers, candles, hotTokens, start: startWS, loadCandles, loadHotTokens } = useMarket();
   const [showDeposit, setShowDeposit] = useState(false);
   useEffect(() => { if (loggedIn) refreshWallet(); }, [loggedIn]);
-  useEffect(() => { startWS(); loadCandles(); }, []);
+  useEffect(() => { startWS(); loadCandles(); loadHotTokens(); }, []);
 
   const mkLabels: Record<string, string> = { "BTC-USDT-SWAP": "BTC", "ETH-USDT-SWAP": "ETH", "SOL-USDT-SWAP": "SOL" };
 
@@ -116,30 +116,34 @@ export default function HomeScreen() {
         })}
       </ScrollView>
 
-      {/* 链上赚币 — horizontal cards */}
+      {/* 热门币种 — OKX 真实数据 */}
       <View style={s.sectionHead}>
-        <Text style={s.sectionTitle}>链上赚币</Text>
-        <TouchableOpacity onPress={() => router.push("/chat/onchain")}>
-          <Text style={s.moreLink}>更多 →</Text>
-        </TouchableOpacity>
+        <Text style={s.sectionTitle}>热门币种</Text>
+        <Text style={s.moreLink}>OKX 实时</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.cardRow}>
-        {[
-          { token: "PEPE", chain: "ETH", pnl: "+82%", price: "$0.00215", signal: "🐋 鲸鱼买入", msg: "帮我分析 PEPE 这个鲸鱼买入信号", bg: "rgba(167,139,250,0.08)", border: "rgba(167,139,250,0.2)" },
-          { token: "WIF", chain: "SOL", pnl: "+22%", price: "$2.98", signal: "🧠 聪明钱建仓", msg: "WIF 聪明钱建仓了，帮我看看能不能跟", bg: "rgba(52,211,153,0.08)", border: "rgba(52,211,153,0.2)" },
-          { token: "DEGEN", chain: "BASE", pnl: "-27%", price: "$0.038", signal: "📊 大额转账", msg: "DEGEN 有大额转账，帮我分析一下", bg: "rgba(251,146,60,0.08)", border: "rgba(251,146,60,0.2)" },
-          { token: "BONK", chain: "SOL", pnl: "+15%", price: "$0.00003", signal: "🆕 新钱包创建", msg: "BONK 有新钱包创建，帮我看看什么情况", bg: "rgba(192,99,255,0.08)", border: "rgba(192,99,255,0.2)" },
-        ].map((c, i) => (
-          <TouchableOpacity key={i} style={[s.earnCard, { backgroundColor: c.bg, borderColor: c.border }]} onPress={() => router.push(`/chat/onchain?msg=${encodeURIComponent(c.msg)}`)} activeOpacity={0.8}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
-              <Text style={s.earnToken}>{c.token}</Text>
-              <Text style={s.earnChain}>{c.chain}</Text>
+        {(hotTokens.length > 0 ? hotTokens : [
+          { symbol: "BTC", instId: "BTC-USDT-SWAP", last: "—", changePct: "0.00", vol24h: "—" },
+          { symbol: "ETH", instId: "ETH-USDT-SWAP", last: "—", changePct: "0.00", vol24h: "—" },
+          { symbol: "SOL", instId: "SOL-USDT-SWAP", last: "—", changePct: "0.00", vol24h: "—" },
+        ]).slice(0, 8).map((t, i) => {
+          const chg = parseFloat(t.changePct);
+          const isUp = chg >= 0;
+          return (
+          <TouchableOpacity key={i} style={s.hotCard} onPress={() => router.push(`/chat/zhuge?msg=${encodeURIComponent("帮我分析 " + t.symbol + " 的走势")}`)} activeOpacity={0.8}>
+            <View style={s.hotBadge}>
+              <Text style={s.hotBadgeT}>{t.symbol[0]}</Text>
             </View>
-            <Text style={[s.earnPnl, { color: c.pnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{c.pnl}</Text>
-            <Text style={s.earnPrice}>{c.price}</Text>
-            <Text style={s.earnSignal}>{c.signal}</Text>
+            <Text style={s.hotSym}>{t.symbol}</Text>
+            <Text style={[s.hotPrice, { color: isUp ? "#34D399" : "#FB923C" }]}>
+              {t.last !== "—" ? `$${parseFloat(t.last).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: t.last.includes(".") && parseFloat(t.last) < 1 ? 6 : 2 })}` : "—"}
+            </Text>
+            <View style={[s.hotChgBadge, { backgroundColor: isUp ? "rgba(52,211,153,0.1)" : "rgba(251,146,60,0.1)" }]}>
+              <Text style={[s.hotChgText, { color: isUp ? "#34D399" : "#FB923C" }]}>{isUp ? "+" : ""}{t.changePct}%</Text>
+            </View>
           </TouchableOpacity>
-        ))}
+        );
+        })}
       </ScrollView>
 
       {/* 合约信号 — horizontal cards */}
@@ -261,13 +265,14 @@ const s = StyleSheet.create({
   moreLink: { fontSize: 12, color: "rgba(255,255,255,0.3)" },
   // Card rows
   cardRow: { gap: 10, paddingBottom: 8 },
-  // 链上赚币 cards
-  earnCard: { width: 150, borderRadius: 16, borderWidth: 0.5, padding: 14 },
-  earnToken: { fontSize: 16, fontWeight: "800", color: "#fff" },
-  earnChain: { fontSize: 10, color: "rgba(255,255,255,0.3)", backgroundColor: "rgba(255,255,255,0.05)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 },
-  earnPnl: { fontSize: 15, fontWeight: "800" },
-  earnPrice: { fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 },
-  earnSignal: { fontSize: 10, color: "rgba(255,255,255,0.35)" },
+  // 热门币种 cards
+  hotCard: { width: 100, backgroundColor: "rgba(35,10,62,0.5)", borderRadius: 18, borderWidth: 0.5, borderColor: "rgba(192,99,255,0.1)", padding: 14, alignItems: "center", gap: 6 },
+  hotBadge: { width: 32, height: 32, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.06)", alignItems: "center", justifyContent: "center" },
+  hotBadgeT: { fontSize: 14, fontWeight: "900", color: "#F7D56D" },
+  hotSym: { fontSize: 13, fontWeight: "800", color: "#fff" },
+  hotPrice: { fontSize: 12, fontWeight: "700", fontFamily: "Courier" },
+  hotChgBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  hotChgText: { fontSize: 10, fontWeight: "700" },
   // 合约信号 cards
   sigCard: { width: 240, backgroundColor: "rgba(35,10,62,0.6)", borderRadius: 20, borderWidth: 0.5, borderColor: "rgba(192,99,255,0.15)", padding: 18 },
   coinBadge: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
