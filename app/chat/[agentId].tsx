@@ -11,23 +11,7 @@ import { CardRenderer } from "@/src/ui/cards/CardRenderer";
 import type { Message } from "@/src/types";
 
 // ── Rich text ──
-function RichText({ text }: { text: string }) {
-  return (
-    <Text style={rt.text}>
-      {text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
-        part.startsWith("**") ? (
-          <Text key={i} style={rt.bold}>{part.replace(/\*/g, "")}</Text>
-        ) : (
-          <Text key={i}>{part}</Text>
-        )
-      )}
-    </Text>
-  );
-}
-const rt = StyleSheet.create({
-  text: { fontSize: 15, color: "rgba(255,255,255,0.88)", lineHeight: 23 },
-  bold: { fontWeight: "700", color: "#fff" },
-});
+import { Markdown } from "@/src/ui/Markdown";
 
 // ── Typing dots ──
 function TypingIndicator() {
@@ -94,7 +78,7 @@ export default function ChatScreen() {
         ) : (
           <View style={ms.agentBlock}>
             <View style={ms.agentB}>
-              <RichText text={item.content} />
+              <Markdown text={item.content} />
             </View>
             {item.cards?.map((c, i) => <View key={i} style={{ marginTop: 10 }}><CardRenderer data={c} /></View>)}
             {/* Quick actions below agent replies */}
