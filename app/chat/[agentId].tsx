@@ -97,6 +97,16 @@ export default function ChatScreen() {
               <RichText text={item.content} />
             </View>
             {item.cards?.map((c, i) => <View key={i} style={{ marginTop: 10 }}><CardRenderer data={c} /></View>)}
+            {/* Quick actions below agent replies */}
+            {item.content && item.content.length > 20 && (
+              <View style={ms.actions}>
+                <TouchableOpacity style={ms.actionBtn} onPress={() => send("详细说说", agentId)}>
+                  <Text style={ms.actionT}>展开分析</Text>
+                </TouchableOpacity>
+                {agentId === "zhuge" && <TouchableOpacity style={[ms.actionBtn, ms.actionPrimary]} onPress={() => send("帮我跟单这个策略", agentId)}><Text style={[ms.actionT, { color: "#090012" }]}>跟单</Text></TouchableOpacity>}
+                {agentId === "onchain" && <TouchableOpacity style={[ms.actionBtn, ms.actionPrimary]} onPress={() => send("帮我跟单这个信号", agentId)}><Text style={[ms.actionT, { color: "#090012" }]}>跟单</Text></TouchableOpacity>}
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -219,6 +229,10 @@ const ms = StyleSheet.create({
   userT: { fontSize: 15, color: "#0D001A", lineHeight: 21 },
   agentBlock: { maxWidth: "92%" },
   agentB: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 18, borderBottomLeftRadius: 4, paddingHorizontal: 15, paddingVertical: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.06)" },
+  actions: { flexDirection: "row", gap: 8, marginTop: 8 },
+  actionBtn: { backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 7 },
+  actionT: { fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.6)" },
+  actionPrimary: { backgroundColor: "#F7D56D" },
 });
 
 const ws = StyleSheet.create({
