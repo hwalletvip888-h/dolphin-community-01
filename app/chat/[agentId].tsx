@@ -130,6 +130,7 @@ export default function ChatScreen() {
   );
 
   return (
+    <View style={{ flex: 1 }}>
     <KeyboardAvoidingView style={s.root} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}>
       {/* Header */}
       <View style={s.header}>
