@@ -1,24 +1,25 @@
 import { View, Text, TouchableOpacity, FlatList, StyleSheet, Alert } from "react-native";
 import { useRouter } from "expo-router";
-import { ChevronLeft, Trash2, Bookmark, MessageSquare } from "lucide-react-native";
-import { useBookmarks, type Bookmark } from "@/src/stores/bookmarks";
+import { ChevronLeft, Trash2, BookmarkIcon } from "lucide-react-native";
+import { useBookmarks } from "@/src/stores/bookmarks";
+import type { Bookmark as BookmarkItem } from "@/src/stores/bookmarks";
 
 export default function BookmarksScreen() {
   const router = useRouter();
   const { items, remove } = useBookmarks();
 
-  const handleDelete = (item: Bookmark) => {
+  const handleDelete = (item: BookmarkItem) => {
     Alert.alert("删除收藏", "确定要删除这条收藏吗？", [
       { text: "取消", style: "cancel" },
       { text: "删除", style: "destructive", onPress: () => remove(item.id) },
     ]);
   };
 
-  const handleJump = (item: Bookmark) => {
+  const handleJump = (item: BookmarkItem) => {
     router.push(`/chat/${item.agentId}`);
   };
 
-  const renderItem = ({ item }: { item: Bookmark }) => (
+  const renderItem = ({ item }: { item: BookmarkItem }) => (
     <TouchableOpacity style={s.card} onPress={() => handleJump(item)} activeOpacity={0.7}>
       <View style={s.cardHeader}>
         <View style={s.agentBadge}>
@@ -47,13 +48,13 @@ export default function BookmarksScreen() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <ChevronLeft size={23} color="#fff" />
         </TouchableOpacity>
-        <Bookmark size={18} color="#F7D56D" />
+        <BookmarkIcon size={18} color="#F7D56D" />
         <Text style={s.headerTitle}>我的收藏</Text>
       </View>
 
       {items.length === 0 ? (
         <View style={s.empty}>
-          <Bookmark size={48} color="rgba(255,255,255,0.1)" />
+          <BookmarkIcon size={48} color="rgba(255,255,255,0.1)" />
           <Text style={s.emptyTitle}>暂无收藏</Text>
           <Text style={s.emptyDesc}>在对话中点击星标按钮收藏重要回复</Text>
         </View>
