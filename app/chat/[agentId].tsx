@@ -199,8 +199,8 @@ export default function ChatScreen() {
               leverage: "10x",
               amount: "100 USDT",
               entryPrice: "市价",
-              takeProfit: "+10%",
-              stopLoss: "-5%",
+              takeProfit: "+5%",
+              stopLoss: "-3%",
             }}
             onCancel={() => setShowTrade(false)}
             onConfirm={() => {

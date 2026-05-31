@@ -26,8 +26,8 @@ export function TradeConfirmCard({
     leverage = "10x",
     amount = "100 USDT",
     entryPrice = "市价",
-    stopLoss = "-5%",
-    takeProfit = "+10%",
+    stopLoss = "-3%",
+    takeProfit = "+5%",
   } = params;
 
   const isLong = direction.includes("多");
