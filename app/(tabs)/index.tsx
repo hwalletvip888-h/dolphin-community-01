@@ -145,25 +145,24 @@ export default function HomeScreen() {
         })}
       </ScrollView>
 
-      {/* 合约信号 — horizontal cards */}
+      {/* 行情速览 — 实时价格 + K线, 不做方向判断 */}
       <View style={s.sectionHead}>
-        <Text style={s.sectionTitle}>合约信号</Text>
+        <Text style={s.sectionTitle}>行情速览</Text>
         <TouchableOpacity onPress={() => router.push("/chat/zhuge")}>
-          <Text style={s.moreLink}>更多 →</Text>
+          <Text style={s.moreLink}>交易 →</Text>
         </TouchableOpacity>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.cardRow}>
         {[
-          { coin: "₿", name: "BTC", pair: "BTC/USDT", instId: "BTC-USDT-SWAP", dir: "多", lev: "10x", entry: "87,200", tp: "89,500", sl: "85,800", msg: "帮我跟单 BTC 做多 入场87200 目标89500 止损85800", color: "#F7931A" },
-          { coin: "Ξ", name: "ETH", pair: "ETH/USDT", instId: "ETH-USDT-SWAP", dir: "空", lev: "5x", entry: "4,150", tp: "3,900", sl: "4,300", msg: "帮我跟单 ETH 做空 入场4150 目标3900 止损4300", color: "#627EEA" },
-          { coin: "S", name: "SOL", pair: "SOL/USDT", instId: "SOL-USDT-SWAP", dir: "多", lev: "3x", entry: "178.5", tp: "195", sl: "172", msg: "帮我跟单 SOL 做多 入场178.5 目标195 止损172", color: "#9945FF" },
+          { coin: "₿", name: "BTC", pair: "BTC/USDT", instId: "BTC-USDT-SWAP", color: "#F7931A" },
+          { coin: "Ξ", name: "ETH", pair: "ETH/USDT", instId: "ETH-USDT-SWAP", color: "#627EEA" },
+          { coin: "S", name: "SOL", pair: "SOL/USDT", instId: "SOL-USDT-SWAP", color: "#9945FF" },
         ].map((c, i) => {
           const t = tickers[c.instId];
           const chg = t ? parseFloat(t.changePct) : 0;
           const isUp = chg >= 0;
           return (
-          <TouchableOpacity key={i} style={s.sigCard} onPress={() => router.push(`/chat/zhuge?msg=${encodeURIComponent(c.msg)}`)} activeOpacity={0.85}>
-            {/* Coin badge + name */}
+          <TouchableOpacity key={i} style={s.sigCard} onPress={() => router.push(`/chat/zhuge?msg=${encodeURIComponent("帮我分析 " + c.pair + " 的走势")}`)} activeOpacity={0.85}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
               <View style={[s.coinBadge, { backgroundColor: c.color + "18" }]}>
                 <Text style={[s.coinBadgeT, { color: c.color }]}>{c.coin}</Text>
@@ -172,30 +171,20 @@ export default function HomeScreen() {
                 <Text style={s.coinName}>{c.name}</Text>
                 <Text style={s.coinPair}>{c.pair}</Text>
               </View>
-              <View style={{ marginLeft: "auto", flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <View style={[s.dirPill, { backgroundColor: c.dir === "多" ? "rgba(52,211,153,0.12)" : "rgba(251,146,60,0.12)" }]}>
-                  <Text style={[s.dirPillT, { color: c.dir === "多" ? "#34D399" : "#FB923C" }]}>{c.dir} {c.lev}</Text>
-                </View>
-              </View>
+              {t && <View style={{ marginLeft: "auto", flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Text style={[s.heroChg, { color: isUp ? "#34D399" : "#FB923C" }]}>{isUp ? "+" : ""}{t.changePct}%</Text>
+              </View>}
             </View>
 
-            {/* Hero price */}
             <Text style={[s.heroPrice, { color: isUp ? "#34D399" : "#FB923C" }]}>
               {t ? `$${parseFloat(t.last).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
             </Text>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
-              {t && <Text style={[s.heroChg, { color: isUp ? "#34D399" : "#FB923C" }]}>{isUp ? "+" : ""}{t.changePct}%</Text>}
-              <Text style={s.heroLabel}>24h</Text>
-            </View>
-
-            {/* Mini chart */}
             <Sparkline data={candles[c.instId] || []} width={180} height={36} color="#34D399" negativeColor="#FB923C" />
 
-            {/* Entry / TP / SL */}
             <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 10, backgroundColor: "rgba(255,255,255,0.03)", borderRadius: 10, padding: 10 }}>
-              <View style={{ alignItems: "center" }}><Text style={s.mLabel}>入场</Text><Text style={s.mVal}>${c.entry}</Text></View>
-              <View style={{ alignItems: "center" }}><Text style={s.mLabel}>止盈</Text><Text style={[s.mVal, { color: "#34D399" }]}>${c.tp}</Text></View>
-              <View style={{ alignItems: "center" }}><Text style={s.mLabel}>止损</Text><Text style={[s.mVal, { color: "#FB923C" }]}>${c.sl}</Text></View>
+              <View style={{ alignItems: "center" }}><Text style={s.mLabel}>24h高</Text><Text style={s.mVal}>{t ? `$${parseFloat(t.high24h).toLocaleString()}` : "—"}</Text></View>
+              <View style={{ alignItems: "center" }}><Text style={s.mLabel}>24h低</Text><Text style={s.mVal}>{t ? `$${parseFloat(t.low24h).toLocaleString()}` : "—"}</Text></View>
+              <View style={{ alignItems: "center" }}><Text style={s.mLabel}>成交量</Text><Text style={s.mVal}>{t ? `$${(parseFloat(t.vol24h)/1e6).toFixed(0)}M` : "—"}</Text></View>
             </View>
           </TouchableOpacity>
         );
