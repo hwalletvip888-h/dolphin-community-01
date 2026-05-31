@@ -40,10 +40,12 @@ export default function ChatScreen() {
   const [input, setInput] = useState("");
   const [showTrade, setShowTrade] = useState(false);
 
-  // 默认 50% 账户余额 (有止损保护), 最少 10U
+  // 保证金 = 50% 账户余额, 最少 10U. 10x 杠杆 → 仓位 = 保证金 × 10
   const walletBalance = total || 0;
-  const [tradeAmount, setTradeAmount] = useState(String(Math.max(10, Math.round(walletBalance * 0.5))));
-  const maxLoss = Math.round(parseFloat(tradeAmount || "0") * 0.03); // -3% SL
+  const defaultMargin = Math.max(10, Math.round(walletBalance * 0.5));
+  const [tradeMargin, setTradeMargin] = useState(String(defaultMargin));
+  const positionSize = Math.round(parseFloat(tradeMargin || "0") * 10); // 10x leverage
+  const maxLoss = Math.round(positionSize * 0.03); // -3% SL
   const listRef = useRef<FlatList<Message>>(null);
   const autoSent = useRef(false);
   const isEmpty = messages.length === 0;
@@ -201,7 +203,7 @@ export default function ChatScreen() {
               symbol: agentId === "onchain" ? "PEPE/USDT" : "BTC/USDT",
               direction: "做多",
               leverage: "10x",
-              amount: `${tradeAmount} USDT`,
+              amount: `保证金 $${tradeMargin} · 仓位 $${positionSize}`,
               entryPrice: "市价",
               stopLoss: "-3%",
               trailDistance: "2%",
