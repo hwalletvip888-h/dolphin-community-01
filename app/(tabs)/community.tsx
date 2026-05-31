@@ -1,9 +1,10 @@
 import { useState, useRef } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
-  StyleSheet, KeyboardAvoidingView, Platform,
+  StyleSheet, KeyboardAvoidingView, Platform, Modal,
 } from "react-native";
-import { Send, Smile, Plus, TrendingUp, Target, Copy, Zap } from "lucide-react-native";
+import { Send, Smile, Plus, Copy, Zap, X, TrendingUp } from "lucide-react-native";
+import { useAuth } from "@/src/stores/auth";
 
 type MsgType = "text" | "signal" | "position" | "onchain";
 
@@ -25,7 +26,16 @@ const MOCK_MSGS: ChatMsg[] = [
 export default function CommunityScreen() {
   const [msgs, setMsgs] = useState<ChatMsg[]>(MOCK_MSGS);
   const [input, setInput] = useState("");
+  const [showPicker, setShowPicker] = useState(false);
+  const { tokens } = useAuth();
   const listRef = useRef<FlatList<ChatMsg>>(null);
+
+  // Mock positions for picker (in production, would come from wallet API)
+  const myPositions = [
+    { symbol: "BTC/USDT", side: "多", size: "0.01 BTC", pnl: "+$12.40", pnlPct: "+1.8%" },
+    { symbol: "ETH/USDT", side: "空", size: "0.5 ETH", pnl: "-$8.20", pnlPct: "-1.5%" },
+    { symbol: "SOL/USDT", side: "多", size: "10 SOL", pnl: "+$23.10", pnlPct: "+3.7%" },
+  ];
 
   const handleSend = () => {
     const t = input.trim();
@@ -34,8 +44,9 @@ export default function CommunityScreen() {
     setInput("");
   };
 
-  const handleSharePosition = () => {
-    setMsgs((p) => [{ id: Date.now().toString(), user: "我", type: "position", time: "刚刚", isMe: true, position: { symbol: "BTC/USDT", side: "多", size: "0.01 BTC", pnl: "+$12.40", pnlPct: "+1.8%" } }, ...p]);
+  const handleSharePosition = (pos: typeof myPositions[0]) => {
+    setShowPicker(false);
+    setMsgs((p) => [{ id: Date.now().toString(), user: "我", type: "position", time: "刚刚", isMe: true, position: pos }, ...p]);
   };
 
   const renderItem = ({ item }: { item: ChatMsg }) => {
@@ -64,7 +75,7 @@ export default function CommunityScreen() {
 
       <View style={s.inputBar}>
         <TouchableOpacity style={s.emojiBtn}><Smile size={22} color="rgba(255,255,255,0.4)" /></TouchableOpacity>
-        <TouchableOpacity style={s.plusBtn} onPress={handleSharePosition}><Plus size={22} color="rgba(255,255,255,0.4)" /></TouchableOpacity>
+        <TouchableOpacity style={s.plusBtn} onPress={() => setShowPicker(true)}><Plus size={22} color="rgba(255,255,255,0.4)" /></TouchableOpacity>
         <TextInput
           value={input} onChangeText={setInput} placeholder="和大家聊聊..." placeholderTextColor="rgba(255,255,255,0.2)"
           multiline maxLength={500} style={s.input}
@@ -74,6 +85,33 @@ export default function CommunityScreen() {
           <Send size={17} color={input.trim() ? "#0D001A" : "rgba(255,255,255,0.25)"} />
         </TouchableOpacity>
       </View>
+
+      {/* Position picker modal */}
+      <Modal visible={showPicker} transparent animationType="slide" onRequestClose={() => setShowPicker(false)}>
+        <View style={pl.overlay}>
+          <View style={pl.sheet}>
+            <View style={pl.sheetHead}>
+              <Text style={pl.sheetTitle}>选择持仓分享</Text>
+              <TouchableOpacity onPress={() => setShowPicker(false)}><X size={20} color="rgba(255,255,255,0.5)" /></TouchableOpacity>
+            </View>
+            {myPositions.map((pos, i) => (
+              <TouchableOpacity key={i} style={pl.posItem} onPress={() => handleSharePosition(pos)} activeOpacity={0.7}>
+                <View style={pl.posLeft}>
+                  <Text style={pl.posSymbol}>{pos.symbol}</Text>
+                  <Text style={[pl.posSide, { color: pos.side === "多" ? "#34D399" : "#FB923C" }]}>{pos.side} {pos.size}</Text>
+                </View>
+                <View style={pl.posRight}>
+                  <Text style={[pl.posPnl, { color: pos.pnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{pos.pnl}</Text>
+                  <Text style={[pl.posPnlPct, { color: pos.pnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{pos.pnlPct}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+            {myPositions.length === 0 && (
+              <Text style={pl.empty}>暂无持仓可分享</Text>
+            )}
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -246,4 +284,20 @@ const ps = StyleSheet.create({
   side: { fontSize: 11, fontWeight: "700" },
   user: { fontSize: 11, color: "rgba(255,255,255,0.4)" },
   pnl: { fontSize: 13, fontWeight: "700" },
+});
+
+// Position picker modal
+const pl = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: "#150530", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, maxHeight: "50%" },
+  sheetHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  sheetTitle: { fontSize: 17, fontWeight: "800", color: "#fff" },
+  posItem: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 14, borderBottomWidth: 0.5, borderColor: "rgba(255,255,255,0.06)" },
+  posLeft: {},
+  posSymbol: { fontSize: 15, fontWeight: "700", color: "#fff" },
+  posSide: { fontSize: 12, fontWeight: "600", marginTop: 2 },
+  posRight: { alignItems: "flex-end" },
+  posPnl: { fontSize: 15, fontWeight: "700" },
+  posPnlPct: { fontSize: 11, fontWeight: "600", marginTop: 2 },
+  empty: { fontSize: 13, color: "rgba(255,255,255,0.3)", textAlign: "center", paddingVertical: 30 },
 });
