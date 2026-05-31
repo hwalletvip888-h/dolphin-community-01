@@ -28,9 +28,9 @@ const CONTRACT_POS = [
 ];
 
 const EARN_POS = [
-  { id: "e1", protocol: "AAVE", chain: "Ethereum", token: "USDC", usdValue: "$800.00", apy: "8.2%", earned: "+$3.20", days: 12, type: "借贷" },
-  { id: "e2", protocol: "Lido", chain: "Ethereum", token: "stETH", usdValue: "$1,250.00", apy: "3.8%", earned: "+$12.50", days: 45, type: "质押" },
-  { id: "e3", protocol: "Uniswap V3", chain: "Arbitrum", token: "ETH/USDC LP", usdValue: "$420.00", apy: "18.5%", earned: "+$8.10", days: 20, type: "做市" },
+  { id: "e1", token: "PEPE", chain: "Ethereum", amount: "120M", buyPrice: "$0.00118", currentPrice: "$0.00215", usdValue: "$258.00", cost: "$141.60", pnl: "+$116.40", pnlPct: "+82.2%", signal: "鲸鱼建仓", time: "2天前" },
+  { id: "e2", token: "WIF", chain: "Solana", amount: "500", buyPrice: "$2.45", currentPrice: "$2.98", usdValue: "$1,490.00", cost: "$1,225.00", pnl: "+$265.00", pnlPct: "+21.6%", signal: "聪明钱买入", time: "5天前" },
+  { id: "e3", token: "DEGEN", chain: "Base", amount: "8,000", buyPrice: "$0.052", currentPrice: "$0.038", usdValue: "$304.00", cost: "$416.00", pnl: "-$112.00", pnlPct: "-26.9%", signal: "大额转账", time: "3天前" },
 ];
 
 export default function CommunityScreen() {
@@ -47,7 +47,7 @@ export default function CommunityScreen() {
 
   const totalContract = myContractPos.reduce((s, p) => s + parseFloat(p.usdValue.replace("$","").replace(",","")), 0);
   const totalEarn = myEarnPos.reduce((s, p) => s + parseFloat(p.usdValue.replace("$","").replace(",","")), 0);
-  const totalPnl = myContractPos.reduce((s, p) => s + parseFloat(p.unrealizedPnl.replace("$","").replace("+","")), 0) + myEarnPos.reduce((s, p) => s + parseFloat(p.earned.replace("$","").replace("+","")), 0);
+  const totalPnl = myContractPos.reduce((s, p) => s + parseFloat(p.unrealizedPnl.replace("$","").replace("+","")), 0) + myEarnPos.reduce((s, p) => s + parseFloat(p.pnl.replace("$","").replace("+","").replace("-",""))*(p.pnl.startsWith("-")?-1:1), 0);
 
   const addMsg = (msg: ChatMsg) => { setMsgs((p) => [msg, ...p]); setShowMenu(false); setMenuPage("main"); };
 
@@ -133,24 +133,29 @@ export default function CommunityScreen() {
           </View>
         ))}
 
-        {/* Earn positions */}
-        <Text style={[ps.sectionTitle, { marginTop: 8 }]}>💰 链上赚币仓位</Text>
+        {/* Earn positions — onchain signals */}
+        <Text style={[ps.sectionTitle, { marginTop: 8 }]}>💰 链上猎手信号仓位</Text>
         {myEarnPos.map((pos) => (
           <View key={pos.id} style={ps.card}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
-              <View>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                 <Text style={ps.symbol}>{pos.token}</Text>
-                <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{pos.protocol} · {pos.chain} · {pos.type}</Text>
+                <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", backgroundColor: "rgba(255,255,255,0.04)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 6 }}>{pos.chain}</Text>
               </View>
+              <Text style={{ fontSize: 10, color: "rgba(167,139,250,0.6)" }}>{pos.signal} · {pos.time}</Text>
+            </View>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
               <Text style={ps.usdVal}>{pos.usdValue}</Text>
+              <Text style={[ps.pnl, { color: pos.pnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{pos.pnl} ({pos.pnlPct})</Text>
             </View>
             <View style={ps.detailRow}>
-              <View style={ps.detail}><Text style={ps.dLabel}>年化</Text><Text style={[ps.dVal, { color: "#34D399" }]}>{pos.apy}</Text></View>
-              <View style={ps.detail}><Text style={ps.dLabel}>已赚</Text><Text style={[ps.dVal, { color: "#34D399" }]}>{pos.earned}</Text></View>
-              <View style={ps.detail}><Text style={ps.dLabel}>天数</Text><Text style={ps.dVal}>{pos.days}天</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>数量</Text><Text style={ps.dVal}>{pos.amount}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>买入价</Text><Text style={ps.dVal}>{pos.buyPrice}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>现价</Text><Text style={ps.dVal}>{pos.currentPrice}</Text></View>
+              <View style={ps.detail}><Text style={ps.dLabel}>成本</Text><Text style={ps.dVal}>{pos.cost}</Text></View>
             </View>
-            <TouchableOpacity style={[ps.closeBtn, { backgroundColor: "rgba(251,146,60,0.1)", borderColor: "rgba(251,146,60,0.2)" }]} activeOpacity={0.7}>
-              <Text style={[ps.closeBtnText, { color: "#FB923C" }]}>赎回</Text>
+            <TouchableOpacity style={[ps.closeBtn, { backgroundColor: "rgba(239,68,68,0.08)", borderColor: "rgba(239,68,68,0.2)" }]} activeOpacity={0.7}>
+              <Text style={ps.closeBtnText}>卖出</Text>
             </TouchableOpacity>
           </View>
         ))}
