@@ -119,7 +119,7 @@ export default function HomeScreen() {
       {/* 链上飙升 — OnchainOS memepump 真实数据 */}
       <View style={s.sectionHead}>
         <Text style={s.sectionTitle}>链上飙升</Text>
-        <Text style={s.moreLink}>OnchainOS</Text>
+        <TouchableOpacity onPress={() => router.push("/signals")}><Text style={s.moreLink}>更多 →</Text></TouchableOpacity>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.cardRow}>
         {(memeTokens.length > 0 ? memeTokens : [

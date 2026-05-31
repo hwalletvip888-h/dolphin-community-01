@@ -25,6 +25,7 @@ export default function RootLayout() {
       <Stack.Screen name="wallet" options={{ animation: "slide_from_right" }} />
       <Stack.Screen name="profile" options={{ animation: "slide_from_right" }} />
       <Stack.Screen name="messages" options={{ animation: "slide_from_right" }} />
+      <Stack.Screen name="signals" options={{ animation: "slide_from_right" }} />
       <Stack.Screen name="chat/[agentId]" options={{ animation: "slide_from_right" }} />
     </Stack>
   );
