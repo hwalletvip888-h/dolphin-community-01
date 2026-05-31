@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import { View, Text, StyleSheet } from "react-native";
-import { Home, Users, Wallet } from "lucide-react-native";
+import { Home, Users, Briefcase } from "lucide-react-native";
 
 export default function TabLayout() {
   return (
@@ -15,7 +15,7 @@ export default function TabLayout() {
     >
       <Tabs.Screen name="index" options={{ title: "首页", tabBarIcon: ({ color, size }) => <Home size={size} color={color} /> }} />
       <Tabs.Screen name="community" options={{ title: "社区", tabBarIcon: ({ color, size }) => <Users size={size} color={color} /> }} />
-      <Tabs.Screen name="profile" options={{ title: "资产", tabBarIcon: ({ color, size }) => <Wallet size={size} color={color} /> }} />
+      <Tabs.Screen name="profile" options={{ title: "持仓", tabBarIcon: ({ color, size }) => <Briefcase size={size} color={color} /> }} />
     </Tabs>
   );
 }
