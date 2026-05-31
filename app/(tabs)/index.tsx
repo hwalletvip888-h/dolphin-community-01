@@ -5,6 +5,7 @@ import { Shield, Copy, X, Download, Search, User, MessageSquare, BookOpen, FileT
 import { AGENTS } from "@/src/data/agents";
 import { useAuth } from "@/src/stores/auth";
 import { useMarket } from "@/src/stores/market";
+import { Sparkline } from "@/src/ui/Sparkline";
 
 const ADDRESSES = [
   { chain: "EVM (ERC20)", addr: "0x7F4e...b3D2", fullAddr: "0x7F4e8c9A1b2C3d4E5f6A7B8C9D0E1F2A3B4C5D6" },
@@ -14,10 +15,10 @@ const ADDRESSES = [
 export default function HomeScreen() {
   const router = useRouter();
   const { total, level, refreshWallet, loggedIn } = useAuth();
-  const { tickers, start: startWS } = useMarket();
+  const { tickers, candles, funding, start: startWS, loadCandles } = useMarket();
   const [showDeposit, setShowDeposit] = useState(false);
   useEffect(() => { if (loggedIn) refreshWallet(); }, [loggedIn]);
-  useEffect(() => { startWS(); }, []);
+  useEffect(() => { startWS(); loadCandles(); }, []);
 
   const mkLabels: Record<string, string> = { "BTC-USDT-SWAP": "BTC", "ETH-USDT-SWAP": "ETH", "SOL-USDT-SWAP": "SOL" };
 
@@ -150,15 +151,17 @@ export default function HomeScreen() {
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.cardRow}>
         {[
-          { pair: "BTC/USDT", dir: "多", lev: "10x", entry: "87,200", tp: "89,500", sl: "85,800", rr: "2.4", pnl: "+2.9%", msg: "帮我跟单 BTC 做多 入场87200 目标89500 止损85800", bg: "rgba(52,211,153,0.06)", border: "rgba(52,211,153,0.15)" },
-          { pair: "ETH/USDT", dir: "空", lev: "5x", entry: "4,150", tp: "3,900", sl: "4,300", rr: "1.8", pnl: "+3.6%", msg: "帮我跟单 ETH 做空 入场4150 目标3900 止损4300", bg: "rgba(251,146,60,0.06)", border: "rgba(251,146,60,0.15)" },
-          { pair: "SOL/USDT", dir: "多", lev: "3x", entry: "178.5", tp: "195", sl: "172", rr: "2.1", pnl: "+10.1%", msg: "帮我跟单 SOL 做多 入场178.5 目标195 止损172", bg: "rgba(52,211,153,0.06)", border: "rgba(52,211,153,0.15)" },
+          { pair: "BTC/USDT", instId: "BTC-USDT-SWAP", dir: "多", lev: "10x", entry: "87,200", tp: "89,500", sl: "85,800", rr: "2.4", pnl: "+2.9%", msg: "帮我跟单 BTC 做多 入场87200 目标89500 止损85800", bg: "rgba(52,211,153,0.06)", border: "rgba(52,211,153,0.15)" },
+          { pair: "ETH/USDT", instId: "ETH-USDT-SWAP", dir: "空", lev: "5x", entry: "4,150", tp: "3,900", sl: "4,300", rr: "1.8", pnl: "+3.6%", msg: "帮我跟单 ETH 做空 入场4150 目标3900 止损4300", bg: "rgba(251,146,60,0.06)", border: "rgba(251,146,60,0.15)" },
+          { pair: "SOL/USDT", instId: "SOL-USDT-SWAP", dir: "多", lev: "3x", entry: "178.5", tp: "195", sl: "172", rr: "2.1", pnl: "+10.1%", msg: "帮我跟单 SOL 做多 入场178.5 目标195 止损172", bg: "rgba(52,211,153,0.06)", border: "rgba(52,211,153,0.15)" },
         ].map((c, i) => (
           <TouchableOpacity key={i} style={[s.sigCard, { backgroundColor: c.bg, borderColor: c.border }]} onPress={() => router.push(`/chat/zhuge?msg=${encodeURIComponent(c.msg)}`)} activeOpacity={0.8}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
               <Text style={s.sigPair}>{c.pair}</Text>
               <Text style={[s.sigDir, { color: c.dir === "多" ? "#34D399" : "#FB923C" }]}>{c.dir} {c.lev}</Text>
             </View>
+            {/* Live sparkline */}
+            <Sparkline data={candles[c.instId] || []} width={140} height={28} />
             <View style={{ flexDirection: "row", gap: 12, marginBottom: 4 }}>
               <View><Text style={s.sigLabel}>入场</Text><Text style={s.sigVal}>{c.entry}</Text></View>
               <View><Text style={s.sigLabel}>止盈</Text><Text style={[s.sigVal, { color: "#34D399" }]}>{c.tp}</Text></View>
@@ -168,6 +171,11 @@ export default function HomeScreen() {
               <Text style={[s.earnPnl, { color: c.pnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{c.pnl}</Text>
               <Text style={s.sigRR}>RR {c.rr}</Text>
             </View>
+            {funding[c.instId] && (
+              <Text style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginTop: 4 }}>
+                资金费率: {(parseFloat(funding[c.instId].fundingRate) * 100).toFixed(3)}%
+              </Text>
+            )}
           </TouchableOpacity>
         ))}
       </ScrollView>

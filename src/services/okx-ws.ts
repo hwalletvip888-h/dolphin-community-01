@@ -1,8 +1,6 @@
 // OKX Public WebSocket — real-time market data
 // Docs: https://www.okx.com/docs-v5/en/#websocket-api-public-channel
 
-type TickerCallback = (data: TickerData) => void;
-
 export interface TickerData {
   instId: string;
   last: string;
@@ -10,99 +8,120 @@ export interface TickerData {
   high24h: string;
   low24h: string;
   vol24h: string;
-  changePct: string; // 24h change %
+  changePct: string;
 }
+
+export interface CandleData {
+  instId: string;
+  ts: string;
+  o: string;
+  h: string;
+  l: string;
+  c: string;
+  vol: string;
+  confirmed: boolean;
+}
+
+export interface FundingData {
+  instId: string;
+  fundingRate: string;
+  nextFundingTime: string;
+}
+
+type ChannelType = "tickers" | "candle1m" | "funding-rate";
+type Callback = (data: any) => void;
 
 const WS_URL = "wss://ws.okx.com:8443/ws/v5/public";
 const PING_INTERVAL = 25000;
 
 let ws: WebSocket | null = null;
-let subscribers: Map<string, TickerCallback[]> = new Map();
+let subscribers: Map<string, Callback[]> = new Map();
 let pingTimer: ReturnType<typeof setInterval> | null = null;
 
 function connect() {
   if (ws?.readyState === WebSocket.OPEN) return;
-
   ws = new WebSocket(WS_URL);
 
   ws.onopen = () => {
     console.log("[OKX WS] connected");
-    // Resubscribe all
-    for (const [instId] of subscribers) {
-      send({ op: "subscribe", args: [{ channel: "tickers", instId }] });
+    for (const [key] of subscribers) {
+      const [channel, instId] = key.split("|");
+      send({ op: "subscribe", args: [{ channel, instId }] });
     }
-    // Ping every 25s to keep alive
-    pingTimer = setInterval(() => {
-      if (ws?.readyState === WebSocket.OPEN) ws.send("ping");
-    }, PING_INTERVAL);
+    pingTimer = setInterval(() => { if (ws?.readyState === WebSocket.OPEN) ws.send("ping"); }, PING_INTERVAL);
   };
 
   ws.onmessage = (event) => {
     if (event.data === "pong") return;
     try {
       const msg = JSON.parse(event.data);
-      if (msg.event === "subscribe") return; // ack
-      if (msg.arg?.channel === "tickers" && msg.data?.length) {
-        const callbacks = subscribers.get(msg.arg.instId) || [];
-        const data: TickerData = {
+      if (msg.event === "subscribe" || msg.event === "error") return;
+      if (!msg.arg?.channel || !msg.data?.length) return;
+
+      const key = `${msg.arg.channel}|${msg.arg.instId}`;
+      const cbs = subscribers.get(key) || [];
+
+      if (msg.arg.channel === "tickers") {
+        const d = msg.data[0];
+        cbs.forEach((cb) => cb({
           instId: msg.arg.instId,
-          last: msg.data[0].last,
-          open24h: msg.data[0].open24h,
-          high24h: msg.data[0].high24h,
-          low24h: msg.data[0].low24h,
-          vol24h: msg.data[0].vol24h,
-          changePct: calcChange(msg.data[0].last, msg.data[0].open24h),
-        };
-        callbacks.forEach((cb) => cb(data));
+          last: d.last, open24h: d.open24h, high24h: d.high24h, low24h: d.low24h,
+          vol24h: d.vol24h, changePct: calcChange(d.last, d.open24h),
+        } as TickerData));
+      } else if (msg.arg.channel === "candle1m") {
+        const [ts, o, h, l, c, _, vol] = msg.data[0];
+        cbs.forEach((cb) => cb({ instId: msg.arg.instId, ts, o, h, l, c, vol, confirmed: true } as CandleData));
+      } else if (msg.arg.channel === "funding-rate") {
+        const d = msg.data[0];
+        cbs.forEach((cb) => cb({ instId: msg.arg.instId, fundingRate: d.fundingRate, nextFundingTime: d.nextFundingTime } as FundingData));
       }
-    } catch { /* skip malformed */ }
+    } catch { /* skip */ }
   };
 
-  ws.onerror = () => { /* reconnect handled by onclose */ };
-  ws.onclose = () => {
-    console.log("[OKX WS] disconnected, reconnecting...");
-    if (pingTimer) clearInterval(pingTimer);
-    setTimeout(connect, 3000);
-  };
+  ws.onclose = () => { console.log("[OKX WS] reconnecting..."); if (pingTimer) clearInterval(pingTimer); setTimeout(connect, 3000); };
 }
 
-function send(data: object) {
-  if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(data));
-  }
-}
+function send(data: object) { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data)); }
 
 function calcChange(last: string, open: string): string {
-  const l = parseFloat(last);
-  const o = parseFloat(open);
+  const l = parseFloat(last), o = parseFloat(open);
   if (!l || !o) return "0.00";
   return (((l - o) / o) * 100).toFixed(2);
 }
 
-export function subscribe(instId: string, cb: TickerCallback) {
-  const existing = subscribers.get(instId) || [];
+export function subscribe(channel: ChannelType, instId: string, cb: Callback) {
+  const key = `${channel}|${instId}`;
+  const existing = subscribers.get(key) || [];
   existing.push(cb);
-  subscribers.set(instId, existing);
+  subscribers.set(key, existing);
 
   if (existing.length === 1) {
-    // First subscriber — send subscribe
     if (ws?.readyState === WebSocket.OPEN) {
-      send({ op: "subscribe", args: [{ channel: "tickers", instId }] });
+      send({ op: "subscribe", args: [{ channel, instId }] });
     } else {
       connect();
     }
   }
 
-  // Return unsubscribe function
   return () => {
-    const cbs = subscribers.get(instId) || [];
+    const cbs = subscribers.get(key) || [];
     const idx = cbs.indexOf(cb);
     if (idx >= 0) cbs.splice(idx, 1);
     if (cbs.length === 0) {
-      subscribers.delete(instId);
-      if (ws?.readyState === WebSocket.OPEN) {
-        send({ op: "unsubscribe", args: [{ channel: "tickers", instId }] });
-      }
+      subscribers.delete(key);
+      if (ws?.readyState === WebSocket.OPEN) send({ op: "unsubscribe", args: [{ channel, instId }] });
     }
   };
+}
+
+// ── REST: fetch historical candles ──
+export async function fetchCandles(instId: string, bar = "1m", limit = 60): Promise<number[]> {
+  try {
+    const r = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${bar}&limit=${limit}`);
+    const d = await r.json();
+    if (d.code === "0" && d.data) {
+      return d.data.map((c: string[]) => parseFloat(c[4])).reverse(); // close prices
+    }
+  } catch {}
+  return [];
 }
