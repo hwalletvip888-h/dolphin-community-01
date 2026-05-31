@@ -26,7 +26,7 @@ export interface TokenHolder {
 
 export async function fetchLargeTransactions(limit = 20): Promise<LargeTx[]> {
   try {
-    const r = await fetch(`${PROXY}/large-txs?limit=${limit}`, { signal: AbortSignal.timeout(10000) });
+    const r = await fetch(`${PROXY}?action=large-txs&limit=${limit}`, { signal: AbortSignal.timeout(10000) });
     const d = await r.json();
     const page = d?.data?.[0];
     const txs = page?.transactionList || [];
@@ -45,7 +45,7 @@ export async function fetchLargeTransactions(limit = 20): Promise<LargeTx[]> {
 
 export async function fetchTokenHolders(contractAddress: string, limit = 10): Promise<TokenHolder[]> {
   try {
-    const r = await fetch(`${PROXY}/token-holders?address=${contractAddress}&limit=${limit}`, { signal: AbortSignal.timeout(10000) });
+    const r = await fetch(`${PROXY}?action=token-holders&address=${contractAddress}&limit=${limit}`, { signal: AbortSignal.timeout(10000) });
     const d = await r.json();
     return d?.data || [];
   } catch {
@@ -55,7 +55,7 @@ export async function fetchTokenHolders(contractAddress: string, limit = 10): Pr
 
 export async function fetchAddressTx(address: string, limit = 20): Promise<any[]> {
   try {
-    const r = await fetch(`${PROXY}/address-tx?address=${address}&limit=${limit}`, { signal: AbortSignal.timeout(10000) });
+    const r = await fetch(`${PROXY}?action=address-tx&address=${address}&limit=${limit}`, { signal: AbortSignal.timeout(10000) });
     const d = await r.json();
     return d?.data || [];
   } catch {
