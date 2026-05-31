@@ -150,7 +150,7 @@ export default function ChatScreen() {
             <Text style={s.hStatus}>在线</Text>
           </View>
         </View>
-        <TouchableOpacity style={s.bkBtn} onPress={() => router.push("/bookmarks")}>
+        <TouchableOpacity style={s.bkBtn}>
           <Bookmark size={17} color="rgba(255,255,255,0.4)" />
         </TouchableOpacity>
         <View style={s.modelBadge}>

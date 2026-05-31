@@ -73,7 +73,7 @@ export default function CommunityScreen() {
   };
 
   const sharePosition = (pos: typeof ZHUGE_POS[0]) => {
-    addMsg({ id: Date.now().toString(), user: "我", type: "position", time: "刚刚", isMe: true, position: pos });
+    addMsg({ id: Date.now().toString(), user: "我", type: "position", time: "刚刚", isMe: true, position: { symbol: pos.symbol, side: pos.side, size: pos.usdValue, pnl: pos.pnl, pnlPct: pos.pnlPct } });
   };
 
   const renderItem = ({ item }: { item: ChatMsg }) => {

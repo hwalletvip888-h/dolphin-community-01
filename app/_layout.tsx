@@ -6,10 +6,7 @@ import { useAuth } from "@/src/stores/auth";
 export default function RootLayout() {
   const { boot } = useAuth();
   const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    boot().then(() => setReady(true));
-  }, []);
+  useEffect(() => { boot().then(() => setReady(true)); }, []);
 
   if (!ready) {
     return (
@@ -26,15 +23,7 @@ export default function RootLayout() {
       <Stack.Screen name="login" options={{ animation: "fade" }} />
       <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
       <Stack.Screen name="wallet" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="bookmarks" options={{ animation: "slide_from_right" }} />
       <Stack.Screen name="chat/[agentId]" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="discover/worldcup" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="discover/strategies" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="discover/onchain" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="discover/events" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="discover/leaderboard" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="settings/strategy" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="settings/onchain" options={{ animation: "slide_from_right" }} />
     </Stack>
   );
 }
