@@ -160,9 +160,17 @@ export default function HomeScreen() {
               <Text style={s.sigPair}>{c.pair}</Text>
               <Text style={[s.sigDir, { color: c.dir === "多" ? "#34D399" : "#FB923C" }]}>{c.dir} {c.lev}</Text>
             </View>
-            {/* Live sparkline */}
-            <Sparkline data={candles[c.instId] || []} width={140} height={28} />
-            <View style={{ flexDirection: "row", gap: 12, marginBottom: 4 }}>
+            {/* Live price + sparkline */}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 6 }}>
+              <View>
+                <Text style={s.sigLabel}>市价</Text>
+                <Text style={s.sigPrice}>
+                  {tickers[c.instId] ? `$${parseFloat(tickers[c.instId].last).toLocaleString()}` : "—"}
+                </Text>
+              </View>
+              <Sparkline data={candles[c.instId] || []} width={100} height={28} />
+            </View>
+            <View style={{ flexDirection: "row", gap: 10, marginBottom: 4 }}>
               <View><Text style={s.sigLabel}>入场</Text><Text style={s.sigVal}>{c.entry}</Text></View>
               <View><Text style={s.sigLabel}>止盈</Text><Text style={[s.sigVal, { color: "#34D399" }]}>{c.tp}</Text></View>
               <View><Text style={s.sigLabel}>止损</Text><Text style={[s.sigVal, { color: "#FB923C" }]}>{c.sl}</Text></View>
@@ -253,6 +261,7 @@ const s = StyleSheet.create({
   sigCard: { width: 180, borderRadius: 16, borderWidth: 0.5, padding: 14 },
   sigPair: { fontSize: 14, fontWeight: "800", color: "#fff" },
   sigDir: { fontSize: 12, fontWeight: "700" },
+  sigPrice: { fontSize: 16, fontWeight: "800", color: "#fff", fontFamily: "Courier" },
   sigLabel: { fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 1 },
   sigVal: { fontSize: 11, fontWeight: "600", color: "rgba(255,255,255,0.8)" },
   sigRR: { fontSize: 11, fontWeight: "700", color: "#F7D56D" },
