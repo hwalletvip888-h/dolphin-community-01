@@ -3,7 +3,7 @@ import type { AgentConfig } from "@/src/types";
 export const AGENTS: AgentConfig[] = [
   {
     id: "dolphin", name: "小海豚", title: "新手引导", quote: "别怕，我带你玩",
-    desc: "阳光温暖，像邻家姐姐一样耐心，把复杂的 Web3 拆成一步步",
+    desc: "像邻家姐姐一样耐心，把复杂的 Web3 拆成一步步。别怕，我带你玩。",
     skills: ["新手教程", "平台指南", "充提币指引"],
     color: "#38BDF8", unlockLevel: 1,
     welcome: "嗨！我是小海豚。别怕，我带你玩。只需一句话，其他交给我。",
