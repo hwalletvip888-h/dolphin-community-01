@@ -92,7 +92,7 @@ export default function CommunityScreen() {
             <Text style={[s.tabText, tab === "chat" && s.tabTextActive]}>社区群聊</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[s.tab, tab === "positions" && s.tabActive]} onPress={() => setTab("positions")}>
-            <Text style={[s.tabText, tab === "positions" && s.tabTextActive]}>当前仓位</Text>
+            <Text style={[s.tabText, tab === "positions" && s.tabTextActive]}>信号广场</Text>
           </TouchableOpacity>
         </View>
         {tab === "chat" && <View style={s.hRow}><View style={s.hDot} /><Text style={s.hSub}>128 在线</Text></View>}
