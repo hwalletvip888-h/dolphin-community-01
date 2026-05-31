@@ -15,10 +15,10 @@ const ADDRESSES = [
 export default function HomeScreen() {
   const router = useRouter();
   const { total, level, refreshWallet, loggedIn } = useAuth();
-  const { tickers, candles, hotTokens, start: startWS, loadCandles, loadHotTokens } = useMarket();
+  const { tickers, candles, start: startWS, loadCandles } = useMarket();
   const [showDeposit, setShowDeposit] = useState(false);
   useEffect(() => { if (loggedIn) refreshWallet(); }, [loggedIn]);
-  useEffect(() => { startWS(); loadCandles(); loadHotTokens(); }, []);
+  useEffect(() => { startWS(); loadCandles(); }, []);
 
   const mkLabels: Record<string, string> = { "BTC-USDT-SWAP": "BTC", "ETH-USDT-SWAP": "ETH", "SOL-USDT-SWAP": "SOL" };
 
@@ -116,31 +116,25 @@ export default function HomeScreen() {
         })}
       </ScrollView>
 
-      {/* 热门币种 — OKX 真实数据 */}
+      {/* 精选信号 — 链上猎手推荐 */}
       <View style={s.sectionHead}>
-        <Text style={s.sectionTitle}>热门币种</Text>
-        <Text style={s.moreLink}>OKX 实时</Text>
+        <Text style={s.sectionTitle}>精选信号</Text>
+        <Text style={s.moreLink}>链上猎手</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.cardRow}>
-        {(hotTokens.length > 0 ? hotTokens : [
-          { symbol: "BTC", instId: "BTC-USDT-SWAP", last: "—", changePct: "0.00", vol24h: "—" },
-          { symbol: "ETH", instId: "ETH-USDT-SWAP", last: "—", changePct: "0.00", vol24h: "—" },
-          { symbol: "SOL", instId: "SOL-USDT-SWAP", last: "—", changePct: "0.00", vol24h: "—" },
-        ]).slice(0, 8).map((t, i) => {
-          const chg = parseFloat(t.changePct);
-          const isUp = chg >= 0;
+        {[
+          { symbol: "PEPE", price: "$0.00215", chg: "+82%", reason: "鲸鱼持续建仓", msg: "帮我分析 PEPE，最近鲸鱼一直在买" },
+          { symbol: "WIF", price: "$2.98", chg: "+22%", reason: "聪明钱信号", msg: "WIF 检测到聪明钱买入，帮我看看" },
+          { symbol: "DOGE", price: "$0.42", chg: "+5%", reason: "大额转账异动", msg: "DOGE 有大额转账，帮我分析一下" },
+        ].map((c, i) => {
+          const isUp = c.chg.startsWith("+");
           return (
-          <TouchableOpacity key={i} style={s.hotCard} onPress={() => router.push(`/chat/zhuge?msg=${encodeURIComponent("帮我分析 " + t.symbol + " 的走势")}`)} activeOpacity={0.8}>
-            <View style={s.hotBadge}>
-              <Text style={s.hotBadgeT}>{t.symbol[0]}</Text>
-            </View>
-            <Text style={s.hotSym}>{t.symbol}</Text>
-            <Text style={[s.hotPrice, { color: isUp ? "#34D399" : "#FB923C" }]}>
-              {t.last !== "—" ? `$${parseFloat(t.last).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: t.last.includes(".") && parseFloat(t.last) < 1 ? 6 : 2 })}` : "—"}
-            </Text>
-            <View style={[s.hotChgBadge, { backgroundColor: isUp ? "rgba(52,211,153,0.1)" : "rgba(251,146,60,0.1)" }]}>
-              <Text style={[s.hotChgText, { color: isUp ? "#34D399" : "#FB923C" }]}>{isUp ? "+" : ""}{t.changePct}%</Text>
-            </View>
+          <TouchableOpacity key={i} style={s.pickCard} onPress={() => router.push(`/chat/onchain?msg=${encodeURIComponent(c.msg)}`)} activeOpacity={0.85}>
+            <View style={s.pickBadge}><Text style={s.pickBadgeT}>{c.symbol[0]}</Text></View>
+            <Text style={s.pickSym}>{c.symbol}</Text>
+            <Text style={s.pickPrice}>{c.price}</Text>
+            <Text style={[s.pickChg, { color: isUp ? "#34D399" : "#FB923C" }]}>{c.chg}</Text>
+            <View style={s.pickReason}><Text style={s.pickReasonT}>{c.reason}</Text></View>
           </TouchableOpacity>
         );
         })}
@@ -265,14 +259,15 @@ const s = StyleSheet.create({
   moreLink: { fontSize: 12, color: "rgba(255,255,255,0.3)" },
   // Card rows
   cardRow: { gap: 10, paddingBottom: 8 },
-  // 热门币种 cards
-  hotCard: { width: 100, backgroundColor: "rgba(35,10,62,0.5)", borderRadius: 18, borderWidth: 0.5, borderColor: "rgba(192,99,255,0.1)", padding: 14, alignItems: "center", gap: 6 },
-  hotBadge: { width: 32, height: 32, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.06)", alignItems: "center", justifyContent: "center" },
-  hotBadgeT: { fontSize: 14, fontWeight: "900", color: "#F7D56D" },
-  hotSym: { fontSize: 13, fontWeight: "800", color: "#fff" },
-  hotPrice: { fontSize: 12, fontWeight: "700", fontFamily: "Courier" },
-  hotChgBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  hotChgText: { fontSize: 10, fontWeight: "700" },
+  // 精选信号 cards
+  pickCard: { width: 130, backgroundColor: "rgba(35,10,62,0.55)", borderRadius: 18, borderWidth: 0.5, borderColor: "rgba(167,139,250,0.15)", padding: 16, alignItems: "center", gap: 6 },
+  pickBadge: { width: 36, height: 36, borderRadius: 12, backgroundColor: "rgba(167,139,250,0.12)", alignItems: "center", justifyContent: "center", marginBottom: 2 },
+  pickBadgeT: { fontSize: 16, fontWeight: "900", color: "#A78BFA" },
+  pickSym: { fontSize: 14, fontWeight: "800", color: "#fff" },
+  pickPrice: { fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.7)" },
+  pickChg: { fontSize: 15, fontWeight: "800" },
+  pickReason: { backgroundColor: "rgba(167,139,250,0.08)", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  pickReasonT: { fontSize: 10, color: "#A78BFA", fontWeight: "600" },
   // 合约信号 cards
   sigCard: { width: 240, backgroundColor: "rgba(35,10,62,0.6)", borderRadius: 20, borderWidth: 0.5, borderColor: "rgba(192,99,255,0.15)", padding: 18 },
   coinBadge: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
