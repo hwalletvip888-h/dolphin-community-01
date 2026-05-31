@@ -4,9 +4,8 @@ import {
   StyleSheet, KeyboardAvoidingView, Platform,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Send, ChevronLeft, Sparkles, StopCircle, Bookmark, BookmarkCheck } from "lucide-react-native";
+import { Send, ChevronLeft, Sparkles, StopCircle } from "lucide-react-native";
 import { useChat } from "@/src/stores/chat";
-import { useBookmarks } from "@/src/stores/bookmarks";
 import { AGENTS } from "@/src/data/agents";
 import { CardRenderer } from "@/src/ui/cards/CardRenderer";
 import type { Message } from "@/src/types";
@@ -98,18 +97,6 @@ export default function ChatScreen() {
               <RichText text={item.content} />
             </View>
             {item.cards?.map((c, i) => <View key={i} style={{ marginTop: 10 }}><CardRenderer data={c} /></View>)}
-            {item.content && (
-              <TouchableOpacity
-                style={ms.bookmarkBtn}
-                onPress={() => isBookmarked(item.id) ? bookmarkRemove(item.id) : bookmarkAdd(item, agentId, item.cards)}
-              >
-                {isBookmarked(item.id) ? (
-                  <BookmarkCheck size={14} color="#F7D56D" />
-                ) : (
-                  <Bookmark size={14} color="rgba(255,255,255,0.25)" />
-                )}
-              </TouchableOpacity>
-            )}
           </View>
         )}
       </View>
@@ -159,9 +146,6 @@ export default function ChatScreen() {
             <Text style={s.hStatus}>在线</Text>
           </View>
         </View>
-        <TouchableOpacity style={s.bkBtn}>
-          <Bookmark size={17} color="rgba(255,255,255,0.4)" />
-        </TouchableOpacity>
         <View style={s.modelBadge}>
           <Sparkles size={13} color="#F7D56D" />
           <Text style={s.modelT}>H1.6</Text>
@@ -216,7 +200,6 @@ const s = StyleSheet.create({
   hName: { fontSize: 16, fontWeight: "700", color: "#fff" },
   onlineDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#34D399" },
   hStatus: { fontSize: 11, color: "rgba(255,255,255,0.35)" },
-  bkBtn: { width: 34, height: 34, alignItems: "center", justifyContent: "center", marginRight: 6 },
   modelBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(247,213,109,0.1)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 },
   modelT: { fontSize: 11, fontWeight: "700", color: "#F7D56D" },
   listContent: { padding: 10, paddingBottom: 20 },
@@ -236,7 +219,6 @@ const ms = StyleSheet.create({
   userT: { fontSize: 15, color: "#0D001A", lineHeight: 21 },
   agentBlock: { maxWidth: "92%" },
   agentB: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 18, borderBottomLeftRadius: 4, paddingHorizontal: 15, paddingVertical: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.06)" },
-  bookmarkBtn: { alignSelf: "flex-start", marginTop: 4, padding: 4 },
 });
 
 const ws = StyleSheet.create({
