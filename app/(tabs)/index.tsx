@@ -151,41 +151,52 @@ export default function HomeScreen() {
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.cardRow}>
         {[
-          { pair: "BTC/USDT", instId: "BTC-USDT-SWAP", dir: "多", lev: "10x", entry: "87,200", tp: "89,500", sl: "85,800", rr: "2.4", pnl: "+2.9%", msg: "帮我跟单 BTC 做多 入场87200 目标89500 止损85800", bg: "rgba(52,211,153,0.06)", border: "rgba(52,211,153,0.15)" },
-          { pair: "ETH/USDT", instId: "ETH-USDT-SWAP", dir: "空", lev: "5x", entry: "4,150", tp: "3,900", sl: "4,300", rr: "1.8", pnl: "+3.6%", msg: "帮我跟单 ETH 做空 入场4150 目标3900 止损4300", bg: "rgba(251,146,60,0.06)", border: "rgba(251,146,60,0.15)" },
-          { pair: "SOL/USDT", instId: "SOL-USDT-SWAP", dir: "多", lev: "3x", entry: "178.5", tp: "195", sl: "172", rr: "2.1", pnl: "+10.1%", msg: "帮我跟单 SOL 做多 入场178.5 目标195 止损172", bg: "rgba(52,211,153,0.06)", border: "rgba(52,211,153,0.15)" },
-        ].map((c, i) => (
-          <TouchableOpacity key={i} style={[s.sigCard, { backgroundColor: c.bg, borderColor: c.border }]} onPress={() => router.push(`/chat/zhuge?msg=${encodeURIComponent(c.msg)}`)} activeOpacity={0.8}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
-              <Text style={s.sigPair}>{c.pair}</Text>
-              <Text style={[s.sigDir, { color: c.dir === "多" ? "#34D399" : "#FB923C" }]}>{c.dir} {c.lev}</Text>
-            </View>
-            {/* Live price + sparkline */}
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 6 }}>
-              <View>
-                <Text style={s.sigLabel}>市价</Text>
-                <Text style={s.sigPrice}>
-                  {tickers[c.instId] ? `$${parseFloat(tickers[c.instId].last).toLocaleString()}` : "—"}
-                </Text>
+          { coin: "₿", name: "BTC", pair: "BTC/USDT", instId: "BTC-USDT-SWAP", dir: "多", lev: "10x", entry: "87,200", tp: "89,500", sl: "85,800", msg: "帮我跟单 BTC 做多 入场87200 目标89500 止损85800", color: "#F7931A" },
+          { coin: "Ξ", name: "ETH", pair: "ETH/USDT", instId: "ETH-USDT-SWAP", dir: "空", lev: "5x", entry: "4,150", tp: "3,900", sl: "4,300", msg: "帮我跟单 ETH 做空 入场4150 目标3900 止损4300", color: "#627EEA" },
+          { coin: "S", name: "SOL", pair: "SOL/USDT", instId: "SOL-USDT-SWAP", dir: "多", lev: "3x", entry: "178.5", tp: "195", sl: "172", msg: "帮我跟单 SOL 做多 入场178.5 目标195 止损172", color: "#9945FF" },
+        ].map((c, i) => {
+          const t = tickers[c.instId];
+          const chg = t ? parseFloat(t.changePct) : 0;
+          const isUp = chg >= 0;
+          return (
+          <TouchableOpacity key={i} style={s.sigCard} onPress={() => router.push(`/chat/zhuge?msg=${encodeURIComponent(c.msg)}`)} activeOpacity={0.85}>
+            {/* Coin badge + name */}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <View style={[s.coinBadge, { backgroundColor: c.color + "18" }]}>
+                <Text style={[s.coinBadgeT, { color: c.color }]}>{c.coin}</Text>
               </View>
-              <Sparkline data={candles[c.instId] || []} width={100} height={28} />
+              <View>
+                <Text style={s.coinName}>{c.name}</Text>
+                <Text style={s.coinPair}>{c.pair}</Text>
+              </View>
+              <View style={{ marginLeft: "auto", flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <View style={[s.dirPill, { backgroundColor: c.dir === "多" ? "rgba(52,211,153,0.12)" : "rgba(251,146,60,0.12)" }]}>
+                  <Text style={[s.dirPillT, { color: c.dir === "多" ? "#34D399" : "#FB923C" }]}>{c.dir} {c.lev}</Text>
+                </View>
+              </View>
             </View>
-            <View style={{ flexDirection: "row", gap: 10, marginBottom: 4 }}>
-              <View><Text style={s.sigLabel}>入场</Text><Text style={s.sigVal}>{c.entry}</Text></View>
-              <View><Text style={s.sigLabel}>止盈</Text><Text style={[s.sigVal, { color: "#34D399" }]}>{c.tp}</Text></View>
-              <View><Text style={s.sigLabel}>止损</Text><Text style={[s.sigVal, { color: "#FB923C" }]}>{c.sl}</Text></View>
+
+            {/* Hero price */}
+            <Text style={[s.heroPrice, { color: isUp ? "#34D399" : "#FB923C" }]}>
+              {t ? `$${parseFloat(t.last).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              {t && <Text style={[s.heroChg, { color: isUp ? "#34D399" : "#FB923C" }]}>{isUp ? "+" : ""}{t.changePct}%</Text>}
+              <Text style={s.heroLabel}>24h</Text>
             </View>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              <Text style={[s.earnPnl, { color: c.pnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{c.pnl}</Text>
-              <Text style={s.sigRR}>RR {c.rr}</Text>
+
+            {/* Mini chart */}
+            <Sparkline data={candles[c.instId] || []} width={180} height={36} color="#34D399" negativeColor="#FB923C" />
+
+            {/* Entry / TP / SL */}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 10, backgroundColor: "rgba(255,255,255,0.03)", borderRadius: 10, padding: 10 }}>
+              <View style={{ alignItems: "center" }}><Text style={s.mLabel}>入场</Text><Text style={s.mVal}>${c.entry}</Text></View>
+              <View style={{ alignItems: "center" }}><Text style={s.mLabel}>止盈</Text><Text style={[s.mVal, { color: "#34D399" }]}>${c.tp}</Text></View>
+              <View style={{ alignItems: "center" }}><Text style={s.mLabel}>止损</Text><Text style={[s.mVal, { color: "#FB923C" }]}>${c.sl}</Text></View>
             </View>
-            {funding[c.instId] && (
-              <Text style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginTop: 4 }}>
-                资金费率: {(parseFloat(funding[c.instId].fundingRate) * 100).toFixed(3)}%
-              </Text>
-            )}
           </TouchableOpacity>
-        ))}
+        );
+        })}
       </ScrollView>
 
       {/* Quick links */}
@@ -258,13 +269,18 @@ const s = StyleSheet.create({
   earnPrice: { fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 },
   earnSignal: { fontSize: 10, color: "rgba(255,255,255,0.35)" },
   // 合约信号 cards
-  sigCard: { width: 180, borderRadius: 16, borderWidth: 0.5, padding: 14 },
-  sigPair: { fontSize: 14, fontWeight: "800", color: "#fff" },
-  sigDir: { fontSize: 12, fontWeight: "700" },
-  sigPrice: { fontSize: 16, fontWeight: "800", color: "#fff", fontFamily: "Courier" },
-  sigLabel: { fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 1 },
-  sigVal: { fontSize: 11, fontWeight: "600", color: "rgba(255,255,255,0.8)" },
-  sigRR: { fontSize: 11, fontWeight: "700", color: "#F7D56D" },
+  sigCard: { width: 240, backgroundColor: "rgba(35,10,62,0.6)", borderRadius: 20, borderWidth: 0.5, borderColor: "rgba(192,99,255,0.15)", padding: 18 },
+  coinBadge: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  coinBadgeT: { fontSize: 18, fontWeight: "900" },
+  coinName: { fontSize: 15, fontWeight: "800", color: "#fff" },
+  coinPair: { fontSize: 10, color: "rgba(255,255,255,0.3)" },
+  dirPill: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  dirPillT: { fontSize: 11, fontWeight: "700" },
+  heroPrice: { fontSize: 24, fontWeight: "900" },
+  heroChg: { fontSize: 13, fontWeight: "700" },
+  heroLabel: { fontSize: 11, color: "rgba(255,255,255,0.3)" },
+  mLabel: { fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 2 },
+  mVal: { fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.85)" },
   // Quick links
   quickRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 20, gap: 8 },
   quickItem: { flex: 1, alignItems: "center", gap: 6, backgroundColor: "rgba(35,10,62,0.4)", borderRadius: 14, paddingVertical: 14 },
