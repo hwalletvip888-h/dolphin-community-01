@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { Shield, Copy, X, Download, Search, User, MessageSquare, BookOpen, FileText, Gift, AlertCircle } from "lucide-react-native";
 import { AGENTS } from "@/src/data/agents";
 import { useAuth } from "@/src/stores/auth";
+import { useMarket } from "@/src/stores/market";
 
 const ADDRESSES = [
   { chain: "EVM (ERC20)", addr: "0x7F4e...b3D2", fullAddr: "0x7F4e8c9A1b2C3d4E5f6A7B8C9D0E1F2A3B4C5D6" },
@@ -13,8 +14,12 @@ const ADDRESSES = [
 export default function HomeScreen() {
   const router = useRouter();
   const { total, level, refreshWallet, loggedIn } = useAuth();
+  const { tickers, start: startWS } = useMarket();
   const [showDeposit, setShowDeposit] = useState(false);
   useEffect(() => { if (loggedIn) refreshWallet(); }, [loggedIn]);
+  useEffect(() => { startWS(); }, []);
+
+  const mkLabels: Record<string, string> = { "BTC-USDT-SWAP": "BTC", "ETH-USDT-SWAP": "ETH", "SOL-USDT-SWAP": "SOL" };
 
   return (
     <ScrollView style={s.root} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
@@ -31,6 +36,28 @@ export default function HomeScreen() {
           <MessageSquare size={20} color="rgba(255,255,255,0.6)" />
         </TouchableOpacity>
       </View>
+
+      {/* Real-time price ticker */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tickerRow}>
+        {["BTC-USDT-SWAP", "ETH-USDT-SWAP", "SOL-USDT-SWAP"].map((id) => {
+          const t = tickers[id];
+          const isUp = t && !t.changePct.startsWith("-");
+          return (
+            <View key={id} style={s.tickerItem}>
+              <Text style={s.tickerSym}>{mkLabels[id]}</Text>
+              <Text style={[s.tickerPrice, isUp ? s.tickerUp : s.tickerDown]}>
+                {t ? `$${parseFloat(t.last).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
+              </Text>
+              {t && (
+                <Text style={[s.tickerChg, isUp ? s.tickerUp : s.tickerDown]}>
+                  {isUp ? "+" : ""}{t.changePct}%
+                </Text>
+              )}
+            </View>
+          );
+        })}
+        <Text style={s.tickerNote}>实时行情</Text>
+      </ScrollView>
 
       {/* Wallet card */}
       <TouchableOpacity style={s.walletCard} onPress={() => router.push("/wallet")} activeOpacity={0.85}>
@@ -174,6 +201,15 @@ const s = StyleSheet.create({
   searchBox: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.06)" },
   searchPlaceholder: { fontSize: 13, color: "rgba(255,255,255,0.25)" },
   msgBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.06)", alignItems: "center", justifyContent: "center" },
+  // Ticker
+  tickerRow: { flexDirection: "row", gap: 16, marginBottom: 12, paddingVertical: 4 },
+  tickerItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+  tickerSym: { fontSize: 13, fontWeight: "700", color: "#fff" },
+  tickerPrice: { fontSize: 13, fontWeight: "700", fontFamily: "Courier" },
+  tickerChg: { fontSize: 11, fontWeight: "600" },
+  tickerUp: { color: "#34D399" },
+  tickerDown: { color: "#FB923C" },
+  tickerNote: { fontSize: 10, color: "rgba(255,255,255,0.2)", marginLeft: 4 },
   // Wallet
   walletCard: { backgroundColor: "rgba(35,10,62,0.7)", borderRadius: 20, borderWidth: 0.5, borderColor: "rgba(192,99,255,0.2)", padding: 20, marginBottom: 24 },
   walletRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
