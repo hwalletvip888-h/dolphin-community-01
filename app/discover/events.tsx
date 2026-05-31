@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import { ChevronLeft, Gift, Clock, Trophy } from "lucide-react-native";
+import { ChevronLeft, Gift, Clock, MessageSquare } from "lucide-react-native";
 
 const EVENTS = [
   { title: "新手注册空投", desc: "完成首次登录和 Agent 对话，领取 $5 USDT 空投", reward: "$5 USDT", deadline: "6/30", status: "进行中", color: "#34D399" },
@@ -12,7 +12,8 @@ const EVENTS = [
 export default function EventsScreen() {
   const router = useRouter();
   return (
-    <ScrollView style={es.root} contentContainerStyle={es.content}>
+    <View style={es.root}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={es.content}>
       <View style={es.header}>
         <TouchableOpacity onPress={() => router.back()}><ChevronLeft size={23} color="#fff" /></TouchableOpacity>
         <Text style={es.title}>活动 & 奖励</Text>
@@ -41,7 +42,17 @@ export default function EventsScreen() {
           </TouchableOpacity>
         </View>
       ))}
+      <View style={{ height: 100 }} />
     </ScrollView>
+      <View style={es.bar}>
+        <TouchableOpacity style={[es.barBtn, { backgroundColor: "#38BDF8" }]} onPress={() => router.push("/chat/dolphin")} activeOpacity={0.85}>
+          <MessageSquare size={17} color="#fff" /><Text style={[es.barBtnText, { color: "#fff" }]}>咨询小海豚</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[es.barBtn, { backgroundColor: "rgba(56,189,248,0.15)", borderWidth: 1, borderColor: "rgba(56,189,248,0.3)" }]} activeOpacity={0.85}>
+          <Gift size={17} color="#38BDF8" /><Text style={[es.barBtnText, { color: "#38BDF8" }]}>参与活动</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
@@ -60,4 +71,7 @@ const es = StyleSheet.create({
   deadline: { fontSize: 11, color: "rgba(255,255,255,0.3)" },
   joinBtn: { borderRadius: 14, paddingVertical: 11, alignItems: "center" },
   joinText: { fontSize: 13, fontWeight: "700" },
+  bar: { flexDirection: "row", gap: 10, padding: 12, paddingBottom: 36, borderTopWidth: 0.5, borderColor: "rgba(255,255,255,0.06)", backgroundColor: "#0A0020" },
+  barBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 14, paddingVertical: 13 },
+  barBtnText: { fontSize: 14, fontWeight: "700" },
 });

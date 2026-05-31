@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import { ChevronLeft, Trophy, TrendingUp } from "lucide-react-native";
+import { ChevronLeft, Trophy, TrendingUp, MessageSquare, Copy } from "lucide-react-native";
 
 const MATCHES = [
   { home: "西班牙", away: "法国", time: "6/15 03:00", yesPrice: "17%", vol: "$12M" },
@@ -20,7 +20,8 @@ const LEADERBOARD = [
 export default function WorldCupScreen() {
   const router = useRouter();
   return (
-    <ScrollView style={st.root} contentContainerStyle={st.content}>
+    <View style={st.root}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={st.content}>
       <View style={st.header}>
         <TouchableOpacity onPress={() => router.back()}><ChevronLeft size={23} color="#fff" /></TouchableOpacity>
         <Text style={st.title}>世界杯竞猜</Text>
@@ -53,10 +54,23 @@ export default function WorldCupScreen() {
       ))}
 
       <Text style={[st.section, { marginTop: 20 }]}>AI 预测</Text>
-      <View style={[st.card, { backgroundColor: "rgba(251,191,36,0.06)", borderColor: "rgba(251,191,36,0.15)" }]}>
+      <View style={[st.card, { backgroundColor: "rgba(251,191,36,0.06)", borderColor: "rgba(251,191,36,0.15)", marginBottom: 100 }]}>
         <Text style={st.aiText}>AI 预测模型基于 Polymarket 实时赔率、历史交锋数据和球队近期表现综合分析。多场比赛预测胜率详见 AI 预言帝对话。</Text>
       </View>
     </ScrollView>
+
+      {/* Bottom action bar */}
+      <View style={st.bar}>
+        <TouchableOpacity style={[st.barBtn, { backgroundColor: "#FBBF24" }]} onPress={() => router.push("/chat/worldcup")} activeOpacity={0.85}>
+          <MessageSquare size={17} color="#090012" />
+          <Text style={st.barBtnText}>咨询 AI 预言帝</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[st.barBtn, { backgroundColor: "rgba(251,191,36,0.15)", borderWidth: 1, borderColor: "rgba(251,191,36,0.3)" }]} activeOpacity={0.85}>
+          <Copy size={17} color="#FBBF24" />
+          <Text style={[st.barBtnText, { color: "#FBBF24" }]}>跟单竞猜</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
@@ -80,4 +94,7 @@ const st = StyleSheet.create({
   rankName: { flex: 1, fontSize: 14, color: "#fff" },
   rankPnl: { fontSize: 14, fontWeight: "700", color: "#34D399" },
   aiText: { fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 20 },
+  bar: { flexDirection: "row", gap: 10, padding: 12, paddingBottom: 36, borderTopWidth: 0.5, borderColor: "rgba(255,255,255,0.06)", backgroundColor: "#0A0020" },
+  barBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 14, paddingVertical: 13 },
+  barBtnText: { fontSize: 14, fontWeight: "700", color: "#090012" },
 });

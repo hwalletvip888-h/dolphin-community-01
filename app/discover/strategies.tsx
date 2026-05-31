@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import { ChevronLeft, TrendingUp, Star, Activity } from "lucide-react-native";
+import { ChevronLeft, Star, Activity, MessageSquare, Copy } from "lucide-react-native";
 
 const STRATEGIES = [
   { name: "H1 布林带均值回归", author: "诸葛策略", sharpe: "2.4", winRate: "68%", return: "+32%", followers: 234, tags: ["BTC", "1H", "低风险"] },
@@ -14,7 +14,8 @@ const TAG_COLORS: Record<string, string> = { "低风险": "#34D399", "中风险"
 export default function StrategiesScreen() {
   const router = useRouter();
   return (
-    <ScrollView style={ss.root} contentContainerStyle={ss.content}>
+    <View style={ss.root}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={ss.content}>
       <View style={ss.header}>
         <TouchableOpacity onPress={() => router.back()}><ChevronLeft size={23} color="#fff" /></TouchableOpacity>
         <Text style={ss.title}>热门策略</Text>
@@ -58,7 +59,17 @@ export default function StrategiesScreen() {
           </TouchableOpacity>
         </View>
       ))}
+      <View style={{ height: 100 }} />
     </ScrollView>
+      <View style={ss.bar}>
+        <TouchableOpacity style={[ss.barBtn, { backgroundColor: "#C084FC" }]} onPress={() => router.push("/chat/zhuge")} activeOpacity={0.85}>
+          <MessageSquare size={17} color="#fff" /><Text style={[ss.barBtnText, { color: "#fff" }]}>咨询诸葛策略</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[ss.barBtn, { backgroundColor: "rgba(192,132,252,0.15)", borderWidth: 1, borderColor: "rgba(192,132,252,0.3)" }]} activeOpacity={0.85}>
+          <Copy size={17} color="#C084FC" /><Text style={[ss.barBtnText, { color: "#C084FC" }]}>跟单策略</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
@@ -80,4 +91,7 @@ const ss = StyleSheet.create({
   tagText: { fontSize: 10, fontWeight: "600" },
   followBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#C084FC", borderRadius: 14, paddingVertical: 11 },
   followText: { fontSize: 13, fontWeight: "700", color: "#fff" },
+  bar: { flexDirection: "row", gap: 10, padding: 12, paddingBottom: 36, borderTopWidth: 0.5, borderColor: "rgba(255,255,255,0.06)", backgroundColor: "#0A0020" },
+  barBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 14, paddingVertical: 13 },
+  barBtnText: { fontSize: 14, fontWeight: "700" },
 });

@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import { ChevronLeft, Trophy, Medal, TrendingUp } from "lucide-react-native";
+import { ChevronLeft, Trophy, MessageSquare, Copy } from "lucide-react-native";
 
 const RANKS = [
   { name: "CryptoKing", profit: "+$3,240", pnlPct: "+42%", trades: 156, winRate: "68%", badge: "👑" },
@@ -24,7 +24,8 @@ const INVITES = [
 export default function LeaderboardScreen() {
   const router = useRouter();
   return (
-    <ScrollView style={ls.root} contentContainerStyle={ls.content}>
+    <View style={ls.root}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={ls.content}>
       <View style={ls.header}>
         <TouchableOpacity onPress={() => router.back()}><ChevronLeft size={23} color="#fff" /></TouchableOpacity>
         <Text style={ls.title}>社区排行</Text>
@@ -55,7 +56,17 @@ export default function LeaderboardScreen() {
           <Text style={ls.inviteReward}>{inv.reward}</Text>
         </View>
       ))}
+      <View style={{ height: 100 }} />
     </ScrollView>
+      <View style={ls.bar}>
+        <TouchableOpacity style={[ls.barBtn, { backgroundColor: "#C084FC" }]} onPress={() => router.push("/chat/zhuge")} activeOpacity={0.85}>
+          <MessageSquare size={17} color="#fff" /><Text style={[ls.barBtnText, { color: "#fff" }]}>咨询诸葛策略</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[ls.barBtn, { backgroundColor: "rgba(192,132,252,0.15)", borderWidth: 1, borderColor: "rgba(192,132,252,0.3)" }]} activeOpacity={0.85}>
+          <Copy size={17} color="#C084FC" /><Text style={[ls.barBtnText, { color: "#C084FC" }]}>跟单高手</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
@@ -86,4 +97,7 @@ const ls = StyleSheet.create({
   inviteName: { flex: 1, fontSize: 13, fontWeight: "600", color: "#fff" },
   inviteCount: { fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.5)" },
   inviteReward: { fontSize: 13, fontWeight: "700", color: "#34D399" },
+  bar: { flexDirection: "row", gap: 10, padding: 12, paddingBottom: 36, borderTopWidth: 0.5, borderColor: "rgba(255,255,255,0.06)", backgroundColor: "#0A0020" },
+  barBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 14, paddingVertical: 13 },
+  barBtnText: { fontSize: 14, fontWeight: "700" },
 });

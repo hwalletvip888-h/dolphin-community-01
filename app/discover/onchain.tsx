@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import { ChevronLeft, Zap, Eye, TrendingUp, ArrowUp } from "lucide-react-native";
+import { ChevronLeft, Zap, Eye, MessageSquare, Copy } from "lucide-react-native";
 
 const SIGNALS = [
   { token: "PEPE", chain: "Ethereum", action: "鲸鱼建仓", amount: "$142K", time: "3m ago", score: 92 },
@@ -20,7 +20,8 @@ const CHAINS = [
 export default function OnchainScreen() {
   const router = useRouter();
   return (
-    <ScrollView style={os.root} contentContainerStyle={os.content}>
+    <View style={os.root}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={os.content}>
       <View style={os.header}>
         <TouchableOpacity onPress={() => router.back()}><ChevronLeft size={23} color="#fff" /></TouchableOpacity>
         <Text style={os.title}>链上热点</Text>
@@ -62,7 +63,17 @@ export default function OnchainScreen() {
           </View>
         </View>
       ))}
+      <View style={{ height: 100 }} />
     </ScrollView>
+      <View style={os.bar}>
+        <TouchableOpacity style={[os.barBtn, { backgroundColor: "#A78BFA" }]} onPress={() => router.push("/chat/onchain")} activeOpacity={0.85}>
+          <MessageSquare size={17} color="#fff" /><Text style={[os.barBtnText, { color: "#fff" }]}>咨询链上猎手</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[os.barBtn, { backgroundColor: "rgba(167,139,250,0.15)", borderWidth: 1, borderColor: "rgba(167,139,250,0.3)" }]} activeOpacity={0.85}>
+          <Copy size={17} color="#A78BFA" /><Text style={[os.barBtnText, { color: "#A78BFA" }]}>一键跟单</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
@@ -86,4 +97,7 @@ const os = StyleSheet.create({
   amount: { fontSize: 16, fontWeight: "800", color: "#fff", marginTop: 2 },
   time: { fontSize: 10, color: "rgba(255,255,255,0.3)" },
   copyBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(167,139,250,0.1)", alignItems: "center", justifyContent: "center" },
+  bar: { flexDirection: "row", gap: 10, padding: 12, paddingBottom: 36, borderTopWidth: 0.5, borderColor: "rgba(255,255,255,0.06)", backgroundColor: "#0A0020" },
+  barBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 14, paddingVertical: 13 },
+  barBtnText: { fontSize: 14, fontWeight: "700" },
 });
