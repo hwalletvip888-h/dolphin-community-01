@@ -40,21 +40,39 @@ export default function HomeScreen() {
   return (
     <ScrollView style={s.root} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
       {/* ── Wallet header ── */}
-      <View style={s.walletCard}>
+      <TouchableOpacity style={s.walletCard} onPress={() => router.push("/wallet")} activeOpacity={0.85}>
         <View style={s.walletTop}>
           <View style={s.walletLeft}>
             <Text style={{ fontSize: 16 }}>👛</Text>
             <Text style={s.walletLabel}>Agent Wallet</Text>
           </View>
-          <View style={s.levelBadge}>
-            <Shield size={12} color="#34D399" />
-            <Text style={s.levelText}>Lv.{level}</Text>
+          <View style={s.walletRight}>
+            <View style={s.levelBadge}>
+              <Shield size={12} color="#34D399" />
+              <Text style={s.levelText}>Lv.{level}</Text>
+            </View>
+            <Text style={s.walletArrow}>→</Text>
           </View>
         </View>
 
         <Text style={s.walletTotal}>
           {total !== null ? `$${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00"}
         </Text>
+
+        {/* Mini sparkline */}
+        {tokens.length > 0 && (
+          <>
+            <View style={s.miniSpark}>
+              {[2,5,3,8,4,6,9,7,10,8,11,9,12,10,13,11,14,12,15,13].map((v, i) => (
+                <View key={i} style={[s.miniBar, { height: v * 2, backgroundColor: v > 7 ? "#34D399" : "rgba(251,146,60,0.6)" }]} />
+              ))}
+            </View>
+            <View style={s.pnlMini}>
+              <Text style={[s.pnlMiniVal, { color: "#34D399" }]}>+$12.40 今日</Text>
+              <Text style={s.pnlMiniInfo}>点击查看详情 →</Text>
+            </View>
+          </>
+        )}
 
         {tokens.length > 0 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tokenRow}>
@@ -66,9 +84,9 @@ export default function HomeScreen() {
             ))}
           </ScrollView>
         ) : (
-          <Text style={s.walletHint}>资产数据加载中...</Text>
+          <Text style={s.walletHint}>连接钱包查看资产 →</Text>
         )}
-      </View>
+      </TouchableOpacity>
 
       {/* ── Carousel ── */}
       <View style={s.carouselSection}>
@@ -187,7 +205,14 @@ const s = StyleSheet.create({
   walletLabel: { fontSize: 13, fontWeight: "600", color: "#F7D56D" },
   levelBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(52,211,153,0.1)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
   levelText: { fontSize: 11, fontWeight: "700", color: "#34D399" },
-  walletTotal: { fontSize: 30, fontWeight: "900", color: "#fff", marginBottom: 10 },
+  walletTotal: { fontSize: 30, fontWeight: "900", color: "#fff", marginBottom: 8 },
+  miniSpark: { flexDirection: "row", alignItems: "flex-end", gap: 2, height: 30, marginBottom: 4 },
+  miniBar: { width: 5, borderRadius: 3 },
+  pnlMini: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+  pnlMiniVal: { fontSize: 12, fontWeight: "700" },
+  pnlMiniInfo: { fontSize: 11, color: "rgba(255,255,255,0.3)" },
+  walletRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  walletArrow: { fontSize: 16, color: "rgba(255,255,255,0.3)" },
   tokenRow: { flexDirection: "row", gap: 8 },
   tokenChip: {
     backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 12,
