@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal } from "react-native";
 import { useRouter } from "expo-router";
-import { Shield, Copy, X, Download } from "lucide-react-native";
+import { Shield, Copy, X, Download, Search, User, MessageSquare } from "lucide-react-native";
 import { AGENTS } from "@/src/data/agents";
 import { useAuth } from "@/src/stores/auth";
 
@@ -18,6 +18,20 @@ export default function HomeScreen() {
 
   return (
     <ScrollView style={s.root} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      {/* Top bar: profile + search */}
+      <View style={s.topBar}>
+        <TouchableOpacity style={s.profileBtn} onPress={() => router.push("/profile")}>
+          <User size={20} color="#fff" />
+        </TouchableOpacity>
+        <View style={s.searchBox}>
+          <Search size={16} color="rgba(255,255,255,0.3)" />
+          <Text style={s.searchPlaceholder}>搜索代币 / 策略 / 信号...</Text>
+        </View>
+        <TouchableOpacity style={s.msgBtn}>
+          <MessageSquare size={20} color="rgba(255,255,255,0.6)" />
+        </TouchableOpacity>
+      </View>
+
       {/* Wallet card */}
       <TouchableOpacity style={s.walletCard} onPress={() => router.push("/wallet")} activeOpacity={0.85}>
         <View style={s.walletRow}>
@@ -137,6 +151,12 @@ export default function HomeScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#090012" },
   content: { paddingTop: 60, paddingHorizontal: 18, paddingBottom: 30 },
+  // Top bar
+  topBar: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16 },
+  profileBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.06)", alignItems: "center", justifyContent: "center" },
+  searchBox: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.06)" },
+  searchPlaceholder: { fontSize: 13, color: "rgba(255,255,255,0.25)" },
+  msgBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.06)", alignItems: "center", justifyContent: "center" },
   // Wallet
   walletCard: { backgroundColor: "rgba(35,10,62,0.7)", borderRadius: 20, borderWidth: 0.5, borderColor: "rgba(192,99,255,0.2)", padding: 20, marginBottom: 24 },
   walletRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
