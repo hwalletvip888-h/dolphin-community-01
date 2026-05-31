@@ -8,6 +8,8 @@ import { Send, ChevronLeft, Sparkles, StopCircle, X } from "lucide-react-native"
 import { useChat } from "@/src/stores/chat";
 import { AGENTS } from "@/src/data/agents";
 import { CardRenderer } from "@/src/ui/cards/CardRenderer";
+import { Markdown } from "@/src/ui/Markdown";
+import { TradeConfirmCard } from "@/src/ui/cards/TradeConfirmCard";
 import type { Message } from "@/src/types";
 
 // ── Rich text ──
@@ -189,34 +191,23 @@ export default function ChatScreen() {
 
       {/* Trade confirmation modal */}
       <Modal visible={showTrade} transparent animationType="slide" onRequestClose={() => setShowTrade(false)}>
-        <View style={tm.overlay}>
-          <View style={tm.sheet}>
-            <View style={tm.head}>
-              <Text style={tm.title}>确认交易</Text>
-              <TouchableOpacity onPress={() => setShowTrade(false)}><X size={20} color="rgba(255,255,255,0.5)" /></TouchableOpacity>
-            </View>
-            <View style={tm.detailRow}>
-              <View style={tm.detail}><Text style={tm.dLabel}>交易对</Text><Text style={tm.dVal}>BTC/USDT</Text></View>
-              <View style={tm.detail}><Text style={tm.dLabel}>方向</Text><Text style={[tm.dVal, { color: "#34D399" }]}>做多</Text></View>
-              <View style={tm.detail}><Text style={tm.dLabel}>杠杆</Text><Text style={tm.dVal}>10x</Text></View>
-            </View>
-            <View style={tm.detailRow}>
-              <View style={tm.detail}><Text style={tm.dLabel}>金额</Text><Text style={tm.dVal}>100 USDT</Text></View>
-              <View style={tm.detail}><Text style={tm.dLabel}>止盈</Text><Text style={[tm.dVal, { color: "#34D399" }]}>+10%</Text></View>
-              <View style={tm.detail}><Text style={tm.dLabel}>止损</Text><Text style={[tm.dVal, { color: "#FB923C" }]}>-5%</Text></View>
-            </View>
-            <View style={tm.warnBox}>
-              <Text style={tm.warnText}>⚠️ 合约交易有风险，请根据自身风险承受能力谨慎操作</Text>
-            </View>
-            <View style={tm.btnRow}>
-              <TouchableOpacity style={tm.cancelBtn} onPress={() => setShowTrade(false)}>
-                <Text style={tm.cancelText}>取消</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={tm.confirmBtn} onPress={() => { setShowTrade(false); send("确认开仓 BTC 做多 100U 10x", agentId); }}>
-                <Text style={tm.confirmText}>确认开仓</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "center", padding: 20 }}>
+          <TradeConfirmCard
+            params={{
+              symbol: agentId === "onchain" ? "PEPE/USDT" : "BTC/USDT",
+              direction: "做多",
+              leverage: "10x",
+              amount: "100 USDT",
+              entryPrice: "市价",
+              takeProfit: "+10%",
+              stopLoss: "-5%",
+            }}
+            onCancel={() => setShowTrade(false)}
+            onConfirm={() => {
+              setShowTrade(false);
+              send("确认开仓", agentId);
+            }}
+          />
         </View>
       </Modal>
     </View>
@@ -275,21 +266,3 @@ const ws = StyleSheet.create({
   qT: { fontSize: 13, color: "rgba(255,255,255,0.6)" },
 });
 
-// Trade modal
-const tm = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#150530", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
-  head: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
-  title: { fontSize: 18, fontWeight: "800", color: "#F7D56D" },
-  detailRow: { flexDirection: "row", marginBottom: 12, gap: 8 },
-  detail: { flex: 1, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 12, alignItems: "center" },
-  dLabel: { fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 4 },
-  dVal: { fontSize: 14, fontWeight: "700", color: "#fff" },
-  warnBox: { backgroundColor: "rgba(251,146,60,0.08)", borderRadius: 12, padding: 12, marginBottom: 16 },
-  warnText: { fontSize: 11, color: "rgba(251,146,60,0.7)", lineHeight: 16, textAlign: "center" },
-  btnRow: { flexDirection: "row", gap: 10 },
-  cancelBtn: { flex: 1, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 14, paddingVertical: 14, alignItems: "center" },
-  cancelText: { fontSize: 15, fontWeight: "600", color: "rgba(255,255,255,0.5)" },
-  confirmBtn: { flex: 1, backgroundColor: "#34D399", borderRadius: 14, paddingVertical: 14, alignItems: "center" },
-  confirmText: { fontSize: 15, fontWeight: "700", color: "#090012" },
-});
