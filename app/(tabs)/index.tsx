@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
-import { Sparkles, TrendingUp, Globe, Trophy, BarChart3, Grid3X3, Coins, Shield, Wallet } from "lucide-react-native";
+import { Sparkles, TrendingUp, Globe, Trophy, BarChart3, Grid3X3, Coins, Shield, Wallet, Eye, Zap } from "lucide-react-native";
 import { AGENTS } from "@/src/data/agents";
 import { useAuth } from "@/src/stores/auth";
 
@@ -35,6 +35,13 @@ export default function HomeScreen() {
     { symbol: "BTC", price: "87,230", change: "+2.3%" },
     { symbol: "ETH", price: "4,150", change: "-1.2%" },
     { symbol: "SOL", price: "184.5", change: "+5.1%" },
+  ];
+
+  // On-chain signals (mock)
+  const signals = [
+    { token: "PEPE", action: "鲸鱼买入", amount: "$142K", time: "3m ago", type: "whale" },
+    { token: "WLD", action: "聪明钱建仓", amount: "$89K", time: "12m ago", type: "smart" },
+    { token: "ARB", action: "大额转账", amount: "$1.2M", time: "28m ago", type: "alert" },
   ];
 
   return (
@@ -178,6 +185,40 @@ export default function HomeScreen() {
         })}
       </View>
 
+      {/* ── On-chain signals ── */}
+      <Text style={s.sectionTitle}>链上信号</Text>
+      <View style={s.signalsCard}>
+        {signals.map((sig, i) => {
+          const colors =
+            sig.type === "whale" ? { bg: "rgba(167,139,250,0.1)", border: "rgba(167,139,250,0.2)", icon: "#A78BFA" } :
+            sig.type === "smart" ? { bg: "rgba(52,211,153,0.1)", border: "rgba(52,211,153,0.2)", icon: "#34D399" } :
+            { bg: "rgba(251,191,36,0.1)", border: "rgba(251,191,36,0.2)", icon: "#FBBF24" };
+          const Icon = sig.type === "whale" ? Eye : sig.type === "smart" ? Zap : Eye;
+          return (
+            <TouchableOpacity
+              key={i}
+              style={[s.signalRow, i < signals.length - 1 && { borderBottomWidth: 0.5, borderColor: "rgba(255,255,255,0.05)", paddingBottom: 10, marginBottom: 10 }]}
+              onPress={() => router.push("/chat/onchain")}
+              activeOpacity={0.7}
+            >
+              <View style={[s.signalIcon, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+                <Icon size={14} color={colors.icon} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Text style={s.signalToken}>{sig.token}</Text>
+                  <View style={[s.signalBadge, { backgroundColor: colors.bg }]}>
+                    <Text style={[s.signalBadgeText, { color: colors.icon }]}>{sig.type === "whale" ? "鲸鱼" : sig.type === "smart" ? "聪明钱" : "大额"}</Text>
+                  </View>
+                </View>
+                <Text style={s.signalAction}>{sig.action} · {sig.amount}</Text>
+              </View>
+              <Text style={s.signalTime}>{sig.time}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
       {/* ── Quick actions ── */}
       <Text style={s.sectionTitle}>快捷功能</Text>
       <View style={s.actions}>
@@ -278,6 +319,20 @@ const s = StyleSheet.create({
   marketSymbol: { fontSize: 13, fontWeight: "700", color: "#fff", width: 50 },
   marketPrice: { flex: 1, fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.8)" },
   marketChange: { fontSize: 13, fontWeight: "600" },
+
+  // ── Signals ──
+  signalsCard: {
+    backgroundColor: "rgba(35,10,62,0.4)", borderRadius: 18,
+    borderWidth: 0.5, borderColor: "rgba(192,99,255,0.12)",
+    padding: 14, marginBottom: 24,
+  },
+  signalRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  signalIcon: { width: 34, height: 34, borderRadius: 12, borderWidth: 0.5, alignItems: "center", justifyContent: "center" },
+  signalToken: { fontSize: 13, fontWeight: "700", color: "#fff" },
+  signalBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  signalBadgeText: { fontSize: 9, fontWeight: "700" },
+  signalAction: { fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 },
+  signalTime: { fontSize: 10, color: "rgba(255,255,255,0.25)" },
 
   // ── Actions ──
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 10 },
