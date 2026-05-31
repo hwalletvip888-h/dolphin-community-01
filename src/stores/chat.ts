@@ -11,6 +11,7 @@ type ChatState = {
   isTyping: boolean;
   send: (text: string, agentId: string) => Promise<void>;
   clear: () => void;
+  cancel: () => void;
 };
 
 export const useChat = create<ChatState>((set, get) => ({
@@ -50,4 +51,5 @@ export const useChat = create<ChatState>((set, get) => ({
   },
 
   clear: () => set({ messages: [], conversationId: "", isTyping: false }),
+  cancel: () => set({ isTyping: false }),
 }));
