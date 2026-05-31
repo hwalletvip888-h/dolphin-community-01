@@ -1,19 +1,13 @@
 import { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal } from "react-native";
 import { useRouter } from "expo-router";
-import { Shield, TrendingUp, Copy, X, Download } from "lucide-react-native";
+import { Shield, Copy, X, Download } from "lucide-react-native";
 import { AGENTS } from "@/src/data/agents";
 import { useAuth } from "@/src/stores/auth";
 
 const ADDRESSES = [
   { chain: "EVM (ERC20)", addr: "0x7F4e...b3D2", fullAddr: "0x7F4e8c9A1b2C3d4E5f6A7B8C9D0E1F2A3B4C5D6" },
   { chain: "Solana", addr: "DR5x...9KmP", fullAddr: "DR5xY8zW3vU2tS1rQ4pO7nM6lK9jI8hG5fD3sA2" },
-];
-
-const SIGNALS = [
-  { token: "PEPE", action: "鲸鱼买入", amount: "$142K", time: "3m前", color: "#A78BFA" },
-  { token: "WLD", action: "聪明钱包建仓", amount: "$89K", time: "12m前", color: "#34D399" },
-  { token: "BTC", action: "诸葛策略开多", amount: "$4.3K", time: "25m前", color: "#C084FC" },
 ];
 
 export default function HomeScreen() {
@@ -80,18 +74,62 @@ export default function HomeScreen() {
         })}
       </ScrollView>
 
-      {/* Community signals */}
-      <Text style={s.sectionTitle}>实时信号</Text>
-      {SIGNALS.map((sig, i) => (
-        <TouchableOpacity key={i} style={s.signalRow} onPress={() => router.push("/chat/onchain")} activeOpacity={0.7}>
-          <View style={[s.signalDot, { backgroundColor: sig.color }]} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.signalToken}>{sig.token} <Text style={s.signalAction}>{sig.action}</Text></Text>
-            <Text style={s.signalSub}>{sig.amount} · {sig.time}</Text>
-          </View>
-          <TrendingUp size={16} color="rgba(255,255,255,0.2)" />
+      {/* 链上赚币 — horizontal cards */}
+      <View style={s.sectionHead}>
+        <Text style={s.sectionTitle}>链上赚币</Text>
+        <TouchableOpacity onPress={() => router.push("/chat/onchain")}>
+          <Text style={s.moreLink}>更多 →</Text>
         </TouchableOpacity>
-      ))}
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.cardRow}>
+        {[
+          { token: "PEPE", chain: "ETH", pnl: "+82%", price: "$0.00215", signal: "🐋 鲸鱼买入", bg: "rgba(167,139,250,0.08)", border: "rgba(167,139,250,0.2)" },
+          { token: "WIF", chain: "SOL", pnl: "+22%", price: "$2.98", signal: "🧠 聪明钱建仓", bg: "rgba(52,211,153,0.08)", border: "rgba(52,211,153,0.2)" },
+          { token: "DEGEN", chain: "BASE", pnl: "-27%", price: "$0.038", signal: "📊 大额转账", bg: "rgba(251,146,60,0.08)", border: "rgba(251,146,60,0.2)" },
+          { token: "BONK", chain: "SOL", pnl: "+15%", price: "$0.00003", signal: "🆕 新钱包创建", bg: "rgba(192,99,255,0.08)", border: "rgba(192,99,255,0.2)" },
+        ].map((c, i) => (
+          <TouchableOpacity key={i} style={[s.earnCard, { backgroundColor: c.bg, borderColor: c.border }]} onPress={() => router.push("/chat/onchain")} activeOpacity={0.8}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+              <Text style={s.earnToken}>{c.token}</Text>
+              <Text style={s.earnChain}>{c.chain}</Text>
+            </View>
+            <Text style={[s.earnPnl, { color: c.pnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{c.pnl}</Text>
+            <Text style={s.earnPrice}>{c.price}</Text>
+            <Text style={s.earnSignal}>{c.signal}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* 合约信号 — horizontal cards */}
+      <View style={s.sectionHead}>
+        <Text style={s.sectionTitle}>合约信号</Text>
+        <TouchableOpacity onPress={() => router.push("/chat/zhuge")}>
+          <Text style={s.moreLink}>更多 →</Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.cardRow}>
+        {[
+          { pair: "BTC/USDT", dir: "多", lev: "10x", entry: "87,200", tp: "89,500", sl: "85,800", rr: "2.4", pnl: "+2.9%", bg: "rgba(52,211,153,0.06)", border: "rgba(52,211,153,0.15)" },
+          { pair: "ETH/USDT", dir: "空", lev: "5x", entry: "4,150", tp: "3,900", sl: "4,300", rr: "1.8", pnl: "+3.6%", bg: "rgba(251,146,60,0.06)", border: "rgba(251,146,60,0.15)" },
+          { pair: "SOL/USDT", dir: "多", lev: "3x", entry: "178.5", tp: "195", sl: "172", rr: "2.1", pnl: "+10.1%", bg: "rgba(52,211,153,0.06)", border: "rgba(52,211,153,0.15)" },
+        ].map((c, i) => (
+          <TouchableOpacity key={i} style={[s.sigCard, { backgroundColor: c.bg, borderColor: c.border }]} onPress={() => router.push("/chat/zhuge")} activeOpacity={0.8}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+              <Text style={s.sigPair}>{c.pair}</Text>
+              <Text style={[s.sigDir, { color: c.dir === "多" ? "#34D399" : "#FB923C" }]}>{c.dir} {c.lev}</Text>
+            </View>
+            <View style={{ flexDirection: "row", gap: 12, marginBottom: 4 }}>
+              <View><Text style={s.sigLabel}>入场</Text><Text style={s.sigVal}>{c.entry}</Text></View>
+              <View><Text style={s.sigLabel}>止盈</Text><Text style={[s.sigVal, { color: "#34D399" }]}>{c.tp}</Text></View>
+              <View><Text style={s.sigLabel}>止损</Text><Text style={[s.sigVal, { color: "#FB923C" }]}>{c.sl}</Text></View>
+            </View>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <Text style={[s.earnPnl, { color: c.pnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{c.pnl}</Text>
+              <Text style={s.sigRR}>RR {c.rr}</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
     </ScrollView>
   );
 }
@@ -118,12 +156,25 @@ const s = StyleSheet.create({
   agentName: { fontSize: 12, fontWeight: "700", color: "#fff" },
   agentTitle: { fontSize: 10, color: "rgba(255,255,255,0.35)" },
   lockLabel: { fontSize: 9, color: "rgba(255,255,255,0.2)", marginTop: 2 },
-  // Signals
-  signalRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, borderBottomWidth: 0.5, borderColor: "rgba(255,255,255,0.05)" },
-  signalDot: { width: 8, height: 8, borderRadius: 4 },
-  signalToken: { fontSize: 13, fontWeight: "700", color: "#fff" },
-  signalAction: { fontSize: 12, color: "rgba(255,255,255,0.5)", fontWeight: "400" },
-  signalSub: { fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 2 },
+  // Section header
+  sectionHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8, marginTop: 12 },
+  moreLink: { fontSize: 12, color: "rgba(255,255,255,0.3)" },
+  // Card rows
+  cardRow: { gap: 10, paddingBottom: 8 },
+  // 链上赚币 cards
+  earnCard: { width: 150, borderRadius: 16, borderWidth: 0.5, padding: 14 },
+  earnToken: { fontSize: 16, fontWeight: "800", color: "#fff" },
+  earnChain: { fontSize: 10, color: "rgba(255,255,255,0.3)", backgroundColor: "rgba(255,255,255,0.05)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 },
+  earnPnl: { fontSize: 15, fontWeight: "800" },
+  earnPrice: { fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 },
+  earnSignal: { fontSize: 10, color: "rgba(255,255,255,0.35)" },
+  // 合约信号 cards
+  sigCard: { width: 180, borderRadius: 16, borderWidth: 0.5, padding: 14 },
+  sigPair: { fontSize: 14, fontWeight: "800", color: "#fff" },
+  sigDir: { fontSize: 12, fontWeight: "700" },
+  sigLabel: { fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 1 },
+  sigVal: { fontSize: 11, fontWeight: "600", color: "rgba(255,255,255,0.8)" },
+  sigRR: { fontSize: 11, fontWeight: "700", color: "#F7D56D" },
 });
 
 // Deposit modal
