@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList,
+  View, Text, TextInput, TouchableOpacity, FlatList, ScrollView,
   StyleSheet, KeyboardAvoidingView, Platform, Modal,
 } from "react-native";
 import { Send, Smile, Plus, Copy, Zap, X, CheckCircle, Share2, TrendingUp, BarChart3, Trophy, Gift, Users } from "lucide-react-native";
@@ -33,8 +33,11 @@ export default function CommunityScreen() {
   const [input, setInput] = useState("");
   const [showMenu, setShowMenu] = useState(false);
   const [menuPage, setMenuPage] = useState<"main" | "position">("main");
+  const [tab, setTab] = useState<"chat" | "positions">("chat");
   const { level } = useAuth();
   const listRef = useRef<FlatList<ChatMsg>>(null);
+  // Mock positions for "current positions" tab
+  const myPositions = POSITIONS;
 
   const addMsg = (msg: ChatMsg) => { setMsgs((p) => [msg, ...p]); setShowMenu(false); setMenuPage("main"); };
 
@@ -65,11 +68,44 @@ export default function CommunityScreen() {
 
   return (
     <KeyboardAvoidingView style={s.root} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={90}>
-      <View style={s.header}><Text style={s.hTitle}>海豚社区</Text><View style={s.hRow}><View style={s.hDot} /><Text style={s.hSub}>128 在线</Text></View></View>
+      <View style={s.header}>
+        <Text style={s.hTitle}>海豚社区</Text>
+        <View style={s.tabRow}>
+          <TouchableOpacity style={[s.tab, tab === "positions" && s.tabActive]} onPress={() => setTab("positions")}>
+            <Text style={[s.tabText, tab === "positions" && s.tabTextActive]}>当前仓位</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[s.tab, tab === "chat" && s.tabActive]} onPress={() => setTab("chat")}>
+            <Text style={[s.tabText, tab === "chat" && s.tabTextActive]}>社区群聊</Text>
+          </TouchableOpacity>
+        </View>
+        {tab === "chat" && <View style={s.hRow}><View style={s.hDot} /><Text style={s.hSub}>128 在线</Text></View>}
+      </View>
 
+      {tab === "chat" ? (
       <FlatList ref={listRef} data={msgs} keyExtractor={(m) => m.id} renderItem={renderItem} contentContainerStyle={s.list} inverted keyboardShouldPersistTaps="handled" />
+      ) : (
+      <ScrollView style={ps.posScroll} contentContainerStyle={ps.posContent}>
+        <Text style={ps.posTitle}>我的持仓</Text>
+        {myPositions.map((pos, i) => (
+          <View key={i} style={ps.posCard}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+              <Text style={ps.posSymbol}>{pos.symbol}</Text>
+              <Text style={[ps.posSide, { color: pos.side === "多" ? "#34D399" : "#FB923C" }]}>{pos.side} {pos.size}</Text>
+            </View>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text style={ps.posLabel}>未实现盈亏</Text>
+              <Text style={[ps.posPnl, { color: pos.pnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{pos.pnl} ({pos.pnlPct})</Text>
+            </View>
+          </View>
+        ))}
+        <View style={ps.posCard}>
+          <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", textAlign: "center" }}>📊 总权益: $1,245.80</Text>
+          <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", textAlign: "center", marginTop: 4 }}>今日盈亏: +$27.30</Text>
+        </View>
+      </ScrollView>
+      )}
 
-      <View style={s.bar}>
+      {tab === "chat" && <View style={s.bar}>
         <TouchableOpacity style={s.emoji}><Smile size={22} color="rgba(255,255,255,0.4)" /></TouchableOpacity>
         <TouchableOpacity style={s.plus} onPress={() => { setMenuPage("main"); setShowMenu(true); }}><Plus size={22} color="rgba(255,255,255,0.4)" /></TouchableOpacity>
         <TextInput value={input} onChangeText={setInput} placeholder="和大家聊聊..." placeholderTextColor="rgba(255,255,255,0.2)" multiline maxLength={500} style={s.inp} onSubmitEditing={handleSend} returnKeyType="send" blurOnSubmit={false} />
@@ -153,7 +189,7 @@ function OnchainCard({ item }: { item: ChatMsg }) { const o = item.onchain!; ret
 function PositionCard({ item }: { item: ChatMsg }) { const p = item.position!; return (
   <View style={[ms.row, item.isMe && { justifyContent: "flex-end" }]}>
     {!item.isMe && <View style={ms.av}><Text style={ms.avT}>{item.user[0]}</Text></View>}
-    <View style={ps.c}><View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}><Text style={ps.s}>{p.symbol}</Text><Text style={{ fontSize: 11, fontWeight: "700", color: p.side === "多" ? "#34D399" : "#FB923C" }}>{p.side} {p.size}</Text></View>
+    <View style={psc.c}><View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}><Text style={psc.s}>{p.symbol}</Text><Text style={{ fontSize: 11, fontWeight: "700", color: p.side === "多" ? "#34D399" : "#FB923C" }}>{p.side} {p.size}</Text></View>
     <View style={{ flexDirection: "row", justifyContent: "space-between" }}><Text style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{item.user}的持仓</Text><Text style={{ fontSize: 13, fontWeight: "700", color: p.pnl.startsWith("+") ? "#34D399" : "#FB923C" }}>{p.pnl} ({p.pnlPct})</Text></View></View>
   </View>
 );}
@@ -167,8 +203,13 @@ const s = StyleSheet.create({
   header: { alignItems: "center", paddingTop: 56, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.06)" },
   hTitle: { fontSize: 20, fontWeight: "900", color: "#C063FF", letterSpacing: 2 },
   hRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 },
+  tabRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 3, marginTop: 8 },
+  tab: { flex: 1, paddingVertical: 7, alignItems: "center", borderRadius: 10 },
+  tabActive: { backgroundColor: "rgba(192,99,255,0.2)" },
+  tabText: { fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.4)" },
+  tabTextActive: { color: "#C063FF" },
   hDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#34D399" },
-  hSub: { fontSize: 11, color: "rgba(255,255,255,0.35)" },
+  hSub: { fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 4 },
   list: { padding: 12, paddingBottom: 20 },
   bar: { flexDirection: "row", alignItems: "flex-end", padding: 6, paddingBottom: 28, borderTopWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.06)", gap: 6, backgroundColor: "#0A0020" },
   emoji: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.04)", alignItems: "center", justifyContent: "center" },
@@ -227,8 +268,20 @@ const cs = StyleSheet.create({
   disc: { fontSize: 10, color: "rgba(255,255,255,0.2)", textAlign: "center", marginTop: 8 },
 });
 
-// Position card
+// Position view tab
 const ps = StyleSheet.create({
+  posScroll: { flex: 1 },
+  posContent: { padding: 16 },
+  posTitle: { fontSize: 16, fontWeight: "800", color: "#fff", marginBottom: 14 },
+  posCard: { backgroundColor: "rgba(35,10,62,0.5)", borderRadius: 16, borderWidth: 0.5, borderColor: "rgba(192,99,255,0.12)", padding: 14, marginBottom: 10 },
+  posSymbol: { fontSize: 15, fontWeight: "800", color: "#fff" },
+  posSide: { fontSize: 12, fontWeight: "700" },
+  posLabel: { fontSize: 12, color: "rgba(255,255,255,0.4)" },
+  posPnl: { fontSize: 14, fontWeight: "700" },
+});
+
+// Position message card
+const psc = StyleSheet.create({
   c: { backgroundColor: "rgba(35,10,62,0.5)", borderRadius: 16, borderWidth: 1, borderColor: "rgba(192,99,255,0.15)", padding: 12, maxWidth: "78%" },
   s: { fontSize: 14, fontWeight: "700", color: "#fff" },
 });
