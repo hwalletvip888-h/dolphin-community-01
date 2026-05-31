@@ -3,11 +3,10 @@ import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, KeyboardAvoidingView, Platform, Modal,
 } from "react-native";
-import { Send, Smile, Plus, Copy, Zap, X, TrendingUp } from "lucide-react-native";
+import { Send, Smile, Plus, Copy, Zap, X, CheckCircle, Share2, TrendingUp, BarChart3, Trophy, Gift, Users } from "lucide-react-native";
 import { useAuth } from "@/src/stores/auth";
 
 type MsgType = "text" | "signal" | "position" | "onchain";
-
 interface ChatMsg {
   id: string; user: string; type: MsgType; content?: string; time: string; isMe?: boolean;
   signal?: { symbol: string; direction: string; entry: string; tp: string; sl: string; rr: string; confidence: string };
@@ -15,7 +14,7 @@ interface ChatMsg {
   onchain?: { token: string; action: string; amount: string; chain: string };
 }
 
-const MOCK_MSGS: ChatMsg[] = [
+const MOCK: ChatMsg[] = [
   { id: "1", user: "诸葛策略", type: "signal", time: "3m", signal: { symbol: "BTC/USDT", direction: "做多", entry: "87,200", tp: "89,500", sl: "85,800", rr: "2.4", confidence: "85%" } },
   { id: "2", user: "链上猎手", type: "onchain", time: "8m", onchain: { token: "PEPE", action: "鲸鱼建仓", amount: "$142K", chain: "Ethereum" } },
   { id: "3", user: "DeFi_Degen", type: "text", content: "BTC 突破 $88K！诸葛策略给的信号太准了 🔥", time: "12m" },
@@ -23,30 +22,38 @@ const MOCK_MSGS: ChatMsg[] = [
   { id: "5", user: "CryptoWhale", type: "text", content: "链上猎手发现的地址今天又拉了 15%", time: "25m" },
 ];
 
+const POSITIONS = [
+  { symbol: "BTC/USDT", side: "多", size: "0.01 BTC", pnl: "+$12.40", pnlPct: "+1.8%" },
+  { symbol: "ETH/USDT", side: "空", size: "0.5 ETH", pnl: "-$8.20", pnlPct: "-1.5%" },
+  { symbol: "SOL/USDT", side: "多", size: "10 SOL", pnl: "+$23.10", pnlPct: "+3.7%" },
+];
+
 export default function CommunityScreen() {
-  const [msgs, setMsgs] = useState<ChatMsg[]>(MOCK_MSGS);
+  const [msgs, setMsgs] = useState<ChatMsg[]>(MOCK);
   const [input, setInput] = useState("");
-  const [showPicker, setShowPicker] = useState(false);
-  const { tokens } = useAuth();
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuPage, setMenuPage] = useState<"main" | "position">("main");
+  const { level } = useAuth();
   const listRef = useRef<FlatList<ChatMsg>>(null);
 
-  // Mock positions for picker (in production, would come from wallet API)
-  const myPositions = [
-    { symbol: "BTC/USDT", side: "多", size: "0.01 BTC", pnl: "+$12.40", pnlPct: "+1.8%" },
-    { symbol: "ETH/USDT", side: "空", size: "0.5 ETH", pnl: "-$8.20", pnlPct: "-1.5%" },
-    { symbol: "SOL/USDT", side: "多", size: "10 SOL", pnl: "+$23.10", pnlPct: "+3.7%" },
+  const addMsg = (msg: ChatMsg) => { setMsgs((p) => [msg, ...p]); setShowMenu(false); setMenuPage("main"); };
+
+  const ACTIONS = [
+    { icon: CheckCircle, label: "签到", color: "#34D399", action: () => addMsg({ id: Date.now().toString(), user: "小海豚", type: "text", content: "✅ 签到成功！+10 积分，连续签到 3 天额外 +20 积分", time: "刚刚" }) },
+    { icon: Share2, label: "分享持仓", color: "#F7D56D", action: () => setMenuPage("position") },
+    { icon: TrendingUp, label: "分享收益", color: "#C084FC", action: () => addMsg({ id: Date.now().toString(), user: "我", type: "text", content: `📊 收益报告\n\n今日 +$12.40 (+1.8%)\n本周 +$45.20 (+6.5%)\n本月 +$128.50 (+18.2%)\nLv.${level} · 连胜 12 天`, time: "刚刚", isMe: true }) },
+    { icon: Users, label: "邀请排行", color: "#38BDF8", action: () => addMsg({ id: Date.now().toString(), user: "小海豚", type: "text", content: "🏆 邀请榜\n1. CryptoWhale 23人\n2. DeFi_Degen 18人\n3. TraderMax 15人\n\n你的排名 #8 (5人)", time: "刚刚" }) },
+    { icon: Trophy, label: "交易赛", color: "#FB923C", action: () => addMsg({ id: Date.now().toString(), user: "小海豚", type: "text", content: "🏆 6月交易大赛\n奖池 $10,000 USDT\n参赛 Lv.5+ | 收益率排名\n\n1st $3,000 | 2nd $1,500 | 3rd $800\n回复「报名」参与", time: "刚刚" }) },
+    { icon: Gift, label: "我的积分", color: "#FBBF24", action: () => addMsg({ id: Date.now().toString(), user: "小海豚", type: "text", content: `🎁 积分: 285\nLv.${level}\n\n签到 +10 | 邀请 +5\n跟单 +20 | 发帖 +5\n\n距下一级 215 积分`, time: "刚刚" }) },
   ];
 
   const handleSend = () => {
-    const t = input.trim();
-    if (!t) return;
-    setMsgs((p) => [{ id: Date.now().toString(), user: "我", type: "text", content: t, time: "刚刚", isMe: true }, ...p]);
-    setInput("");
+    const t = input.trim(); if (!t) return;
+    addMsg({ id: Date.now().toString(), user: "我", type: "text", content: t, time: "刚刚", isMe: true }); setInput("");
   };
 
-  const handleSharePosition = (pos: typeof myPositions[0]) => {
-    setShowPicker(false);
-    setMsgs((p) => [{ id: Date.now().toString(), user: "我", type: "position", time: "刚刚", isMe: true, position: pos }, ...p]);
+  const sharePosition = (pos: typeof POSITIONS[0]) => {
+    addMsg({ id: Date.now().toString(), user: "我", type: "position", time: "刚刚", isMe: true, position: pos });
   };
 
   const renderItem = ({ item }: { item: ChatMsg }) => {
@@ -58,56 +65,50 @@ export default function CommunityScreen() {
 
   return (
     <KeyboardAvoidingView style={s.root} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={90}>
-      <View style={s.header}>
-        <Text style={s.title}>海豚社区</Text>
-        <View style={s.onlineRow}><View style={s.onlineDot} /><Text style={s.onlineText}>128 人在线</Text></View>
+      <View style={s.header}><Text style={s.hTitle}>海豚社区</Text><View style={s.hRow}><View style={s.hDot} /><Text style={s.hSub}>128 在线</Text></View></View>
+
+      <FlatList ref={listRef} data={msgs} keyExtractor={(m) => m.id} renderItem={renderItem} contentContainerStyle={s.list} inverted keyboardShouldPersistTaps="handled" />
+
+      <View style={s.bar}>
+        <TouchableOpacity style={s.emoji}><Smile size={22} color="rgba(255,255,255,0.4)" /></TouchableOpacity>
+        <TouchableOpacity style={s.plus} onPress={() => { setMenuPage("main"); setShowMenu(true); }}><Plus size={22} color="rgba(255,255,255,0.4)" /></TouchableOpacity>
+        <TextInput value={input} onChangeText={setInput} placeholder="和大家聊聊..." placeholderTextColor="rgba(255,255,255,0.2)" multiline maxLength={500} style={s.inp} onSubmitEditing={handleSend} returnKeyType="send" blurOnSubmit={false} />
+        <TouchableOpacity onPress={handleSend} disabled={!input.trim()} style={[s.send, input.trim() ? s.sendOn : s.sendOff]}><Send size={17} color={input.trim() ? "#0D001A" : "rgba(255,255,255,0.25)"} /></TouchableOpacity>
       </View>
 
-      <FlatList
-        ref={listRef}
-        data={msgs}
-        keyExtractor={(m) => m.id}
-        renderItem={renderItem}
-        contentContainerStyle={s.list}
-        inverted
-        keyboardShouldPersistTaps="handled"
-      />
-
-      <View style={s.inputBar}>
-        <TouchableOpacity style={s.emojiBtn}><Smile size={22} color="rgba(255,255,255,0.4)" /></TouchableOpacity>
-        <TouchableOpacity style={s.plusBtn} onPress={() => setShowPicker(true)}><Plus size={22} color="rgba(255,255,255,0.4)" /></TouchableOpacity>
-        <TextInput
-          value={input} onChangeText={setInput} placeholder="和大家聊聊..." placeholderTextColor="rgba(255,255,255,0.2)"
-          multiline maxLength={500} style={s.input}
-          onSubmitEditing={handleSend} returnKeyType="send" blurOnSubmit={false}
-        />
-        <TouchableOpacity onPress={handleSend} disabled={!input.trim()} style={[s.send, input.trim() ? s.sendOn : s.sendOff]}>
-          <Send size={17} color={input.trim() ? "#0D001A" : "rgba(255,255,255,0.25)"} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Position picker modal */}
-      <Modal visible={showPicker} transparent animationType="slide" onRequestClose={() => setShowPicker(false)}>
-        <View style={pl.overlay}>
-          <View style={pl.sheet}>
-            <View style={pl.sheetHead}>
-              <Text style={pl.sheetTitle}>选择持仓分享</Text>
-              <TouchableOpacity onPress={() => setShowPicker(false)}><X size={20} color="rgba(255,255,255,0.5)" /></TouchableOpacity>
-            </View>
-            {myPositions.map((pos, i) => (
-              <TouchableOpacity key={i} style={pl.posItem} onPress={() => handleSharePosition(pos)} activeOpacity={0.7}>
-                <View style={pl.posLeft}>
-                  <Text style={pl.posSymbol}>{pos.symbol}</Text>
-                  <Text style={[pl.posSide, { color: pos.side === "多" ? "#34D399" : "#FB923C" }]}>{pos.side} {pos.size}</Text>
-                </View>
-                <View style={pl.posRight}>
-                  <Text style={[pl.posPnl, { color: pos.pnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{pos.pnl}</Text>
-                  <Text style={[pl.posPnlPct, { color: pos.pnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{pos.pnlPct}</Text>
-                </View>
+      {/* + Menu Modal */}
+      <Modal visible={showMenu} transparent animationType="slide" onRequestClose={() => setShowMenu(false)}>
+        <View style={m.overlay}>
+          <View style={m.sheet}>
+            <View style={m.head}>
+              <TouchableOpacity onPress={() => menuPage === "position" ? setMenuPage("main") : setShowMenu(false)}>
+                <Text style={m.back}>{menuPage === "position" ? "← 返回" : ""}</Text>
               </TouchableOpacity>
-            ))}
-            {myPositions.length === 0 && (
-              <Text style={pl.empty}>暂无持仓可分享</Text>
+              <Text style={m.title}>{menuPage === "position" ? "选择持仓" : "社区功能"}</Text>
+              <TouchableOpacity onPress={() => setShowMenu(false)}><X size={20} color="rgba(255,255,255,0.5)" /></TouchableOpacity>
+            </View>
+            {menuPage === "main" ? (
+              <View style={m.grid}>
+                {ACTIONS.map((a, i) => (
+                  <TouchableOpacity key={i} style={m.item} onPress={a.action} activeOpacity={0.7}>
+                    <View style={[m.icon, { backgroundColor: a.color + "15" }]}><a.icon size={22} color={a.color} /></View>
+                    <Text style={m.label}>{a.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              POSITIONS.map((pos, i) => (
+                <TouchableOpacity key={i} style={m.posRow} onPress={() => sharePosition(pos)}>
+                  <View>
+                    <Text style={m.posSym}>{pos.symbol}</Text>
+                    <Text style={{ fontSize: 12, color: pos.side === "多" ? "#34D399" : "#FB923C", fontWeight: "600" }}>{pos.side} {pos.size}</Text>
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={{ fontSize: 15, fontWeight: "700", color: pos.pnl.startsWith("+") ? "#34D399" : "#FB923C" }}>{pos.pnl}</Text>
+                    <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{pos.pnlPct}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))
             )}
           </View>
         </View>
@@ -116,188 +117,118 @@ export default function CommunityScreen() {
   );
 }
 
-// ═══ Message types ═══
+// ═══ Components ═══
 
 function TextMsg({ item }: { item: ChatMsg }) {
   return (
     <View style={[ms.row, item.isMe && { justifyContent: "flex-end" }]}>
-      {!item.isMe && <View style={ms.avatar}><Text style={ms.avatarT}>{item.user[0]}</Text></View>}
-      <View style={[item.isMe ? ms.meB : ms.b, { maxWidth: "78%" }]}>
-        {!item.isMe && <Text style={ms.user}>{item.user}</Text>}
-        <Text style={item.isMe ? ms.meT : ms.t}>{item.content}</Text>
-        <Text style={ms.time}>{item.time}</Text>
+      {!item.isMe && <View style={ms.av}><Text style={ms.avT}>{item.user[0]}</Text></View>}
+      <View style={[item.isMe ? ms.me : ms.bb]}>
+        {!item.isMe && <Text style={ms.un}>{item.user}</Text>}
+        <Text style={item.isMe ? ms.meT : ms.tx}>{item.content}</Text>
+        <Text style={ms.tm}>{item.time}</Text>
       </View>
     </View>
   );
 }
 
-function SignalCard({ item }: { item: ChatMsg }) {
-  const s = item.signal!;
-  return (
-    <View style={cs.card}>
-      <View style={cs.head}>
-        <View style={cs.avatar}><Text style={cs.avatarT}>诸</Text></View>
-        <View style={{ flex: 1 }}>
-          <Text style={cs.user}>诸葛策略</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}><View style={cs.liveDot} /><Text style={cs.liveText}>实时信号</Text></View>
-        </View>
-        <Text style={cs.time}>{item.time}</Text>
-      </View>
-      <View style={cs.body}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
-          <Text style={cs.symbol}>{s.symbol}</Text>
-          <View style={cs.dirBadge}><Text style={cs.dirText}>{s.direction} {s.confidence}</Text></View>
-        </View>
-        <View style={cs.metrics}>
-          <MetricBox label="入场" value={s.entry} />
-          <MetricBox label="止盈" value={s.tp} color="#34D399" />
-          <MetricBox label="止损" value={s.sl} color="#FB923C" />
-          <MetricBox label="盈亏比" value={s.rr} color="#F7D56D" />
-        </View>
-      </View>
-      <TouchableOpacity style={cs.followBtn} activeOpacity={0.8}>
-        <Copy size={15} color="#090012" />
-        <Text style={cs.followText}>一键跟单</Text>
-      </TouchableOpacity>
-      <Text style={cs.disclaimer}>跟单有风险，请设置个人最大亏损限额</Text>
-    </View>
-  );
-}
+function SignalCard({ item }: { item: ChatMsg }) { const s = item.signal!; return (
+  <View style={cs.card}>
+    <View style={cs.head}><View style={cs.av}><Text style={cs.avT}>诸</Text></View><View style={{ flex: 1 }}><Text style={cs.un}>诸葛策略</Text><View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}><View style={cs.live} /><Text style={cs.liveT}>实时信号</Text></View></View><Text style={cs.tm}>{item.time}</Text></View>
+    <View style={cs.bd}><View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}><Text style={cs.sym}>{s.symbol}</Text><View style={cs.dir}><Text style={cs.dirT}>{s.direction} {s.confidence}</Text></View></View>
+    <View style={cs.metrics}><M label="入场" v={s.entry} /><M label="止盈" v={s.tp} c="#34D399" /><M label="止损" v={s.sl} c="#FB923C" /><M label="RR" v={s.rr} c="#F7D56D" /></View></View>
+    <TouchableOpacity style={cs.btn}><Copy size={15} color="#090012" /><Text style={cs.btnT}>一键跟单</Text></TouchableOpacity>
+    <Text style={cs.disc}>跟单有风险，请设置个人最大亏损限额</Text>
+  </View>
+);}
 
-function OnchainCard({ item }: { item: ChatMsg }) {
-  const o = item.onchain!;
-  return (
-    <View style={[cs.card, { borderColor: "rgba(167,139,250,0.2)" }]}>
-      <View style={cs.head}>
-        <View style={[cs.avatar, { backgroundColor: "rgba(167,139,250,0.15)" }]}><Text style={[cs.avatarT, { color: "#A78BFA" }]}>猎</Text></View>
-        <View style={{ flex: 1 }}>
-          <Text style={cs.user}>链上猎手</Text>
-          <Text style={cs.label}>{o.chain}</Text>
-        </View>
-        <Text style={cs.time}>{item.time}</Text>
-      </View>
-      <View style={cs.body}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <View>
-            <Text style={cs.tokenName}>{o.token}</Text>
-            <Text style={cs.tokenAction}>{o.action}</Text>
-          </View>
-          <Text style={cs.tokenAmt}>{o.amount}</Text>
-        </View>
-      </View>
-      <TouchableOpacity style={[cs.followBtn, { backgroundColor: "#A78BFA" }]} activeOpacity={0.8}>
-        <Zap size={15} color="#fff" />
-        <Text style={[cs.followText, { color: "#fff" }]}>一键跟单</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
+function OnchainCard({ item }: { item: ChatMsg }) { const o = item.onchain!; return (
+  <View style={[cs.card, { borderColor: "rgba(167,139,250,0.2)" }]}>
+    <View style={cs.head}><View style={[cs.av, { backgroundColor: "rgba(167,139,250,0.15)" }]}><Text style={[cs.avT, { color: "#A78BFA" }]}>猎</Text></View><View style={{ flex: 1 }}><Text style={cs.un}>链上猎手</Text><Text style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{o.chain}</Text></View><Text style={cs.tm}>{item.time}</Text></View>
+    <View style={cs.bd}><View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><View><Text style={{ fontSize: 18, fontWeight: "800", color: "#fff" }}>{o.token}</Text><Text style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>{o.action}</Text></View><Text style={{ fontSize: 18, fontWeight: "800", color: "#A78BFA" }}>{o.amount}</Text></View></View>
+    <TouchableOpacity style={[cs.btn, { backgroundColor: "#A78BFA" }]}><Zap size={15} color="#fff" /><Text style={{ fontSize: 14, fontWeight: "700", color: "#fff" }}>一键跟单</Text></TouchableOpacity>
+  </View>
+);}
 
-function PositionCard({ item }: { item: ChatMsg }) {
-  const p = item.position!;
-  return (
-    <View style={[ms.row, item.isMe && { justifyContent: "flex-end" }]}>
-      {!item.isMe && <View style={ms.avatar}><Text style={ms.avatarT}>{item.user[0]}</Text></View>}
-      <View style={ps.card}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
-          <Text style={ps.symbol}>{p.symbol}</Text>
-          <Text style={[ps.side, { color: p.side === "多" ? "#34D399" : "#FB923C" }]}>{p.side} {p.size}</Text>
-        </View>
-        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-          <Text style={ps.user}>{item.user} 的持仓</Text>
-          <Text style={[ps.pnl, { color: p.pnl.startsWith("+") ? "#34D399" : "#FB923C" }]}>{p.pnl} ({p.pnlPct})</Text>
-        </View>
-      </View>
-    </View>
-  );
-}
+function PositionCard({ item }: { item: ChatMsg }) { const p = item.position!; return (
+  <View style={[ms.row, item.isMe && { justifyContent: "flex-end" }]}>
+    {!item.isMe && <View style={ms.av}><Text style={ms.avT}>{item.user[0]}</Text></View>}
+    <View style={ps.c}><View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}><Text style={ps.s}>{p.symbol}</Text><Text style={{ fontSize: 11, fontWeight: "700", color: p.side === "多" ? "#34D399" : "#FB923C" }}>{p.side} {p.size}</Text></View>
+    <View style={{ flexDirection: "row", justifyContent: "space-between" }}><Text style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{item.user}的持仓</Text><Text style={{ fontSize: 13, fontWeight: "700", color: p.pnl.startsWith("+") ? "#34D399" : "#FB923C" }}>{p.pnl} ({p.pnlPct})</Text></View></View>
+  </View>
+);}
 
-function MetricBox({ label, value, color = "#fff" }: { label: string; value: string; color?: string }) {
-  return (
-    <View style={{ alignItems: "center" }}>
-      <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 2 }}>{label}</Text>
-      <Text style={{ fontSize: 13, fontWeight: "700", color }}>{value}</Text>
-    </View>
-  );
-}
+function M({ label, v, c = "#fff" }: { label: string; v: string; c?: string }) { return <View style={{ alignItems: "center" }}><Text style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 2 }}>{label}</Text><Text style={{ fontSize: 13, fontWeight: "700", color: c }}>{v}</Text></View>; }
 
 // ═══ Styles ═══
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#090012" },
   header: { alignItems: "center", paddingTop: 56, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.06)" },
-  title: { fontSize: 20, fontWeight: "900", color: "#C063FF", letterSpacing: 2 },
-  onlineRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 },
-  onlineDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#34D399" },
-  onlineText: { fontSize: 11, color: "rgba(255,255,255,0.35)" },
+  hTitle: { fontSize: 20, fontWeight: "900", color: "#C063FF", letterSpacing: 2 },
+  hRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 },
+  hDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#34D399" },
+  hSub: { fontSize: 11, color: "rgba(255,255,255,0.35)" },
   list: { padding: 12, paddingBottom: 20 },
-  inputBar: { flexDirection: "row", alignItems: "flex-end", padding: 6, paddingBottom: 28, borderTopWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.06)", gap: 6, backgroundColor: "#0A0020" },
-  emojiBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.04)", alignItems: "center", justifyContent: "center" },
-  plusBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.04)", alignItems: "center", justifyContent: "center" },
-  input: { flex: 1, backgroundColor: "rgba(255,255,255,0.04)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.06)", borderRadius: 22, paddingHorizontal: 14, paddingVertical: 9, color: "#fff", fontSize: 15, maxHeight: 100 },
+  bar: { flexDirection: "row", alignItems: "flex-end", padding: 6, paddingBottom: 28, borderTopWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.06)", gap: 6, backgroundColor: "#0A0020" },
+  emoji: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.04)", alignItems: "center", justifyContent: "center" },
+  plus: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.04)", alignItems: "center", justifyContent: "center" },
+  inp: { flex: 1, backgroundColor: "rgba(255,255,255,0.04)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.06)", borderRadius: 22, paddingHorizontal: 14, paddingVertical: 9, color: "#fff", fontSize: 15, maxHeight: 100 },
   send: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
   sendOff: { backgroundColor: "rgba(255,255,255,0.06)" },
   sendOn: { backgroundColor: "#F7D56D" },
 });
 
-// Text messages
-const ms = StyleSheet.create({
-  row: { flexDirection: "row", gap: 8, marginBottom: 14 },
-  avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(192,99,255,0.2)", alignItems: "center", justifyContent: "center", marginTop: 2 },
-  avatarT: { fontSize: 12, fontWeight: "700", color: "#C063FF" },
-  b: { backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 16, padding: 10 },
-  meB: { backgroundColor: "#C063FF", borderRadius: 16, padding: 10 },
-  user: { fontSize: 11, fontWeight: "700", color: "#C063FF", marginBottom: 2 },
-  t: { fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 20 },
-  meT: { fontSize: 14, color: "#fff", lineHeight: 20 },
-  time: { fontSize: 9, color: "rgba(255,255,255,0.2)", marginTop: 4, textAlign: "right" },
+// Modal
+const m = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: "#150530", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40 },
+  head: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  back: { fontSize: 14, color: "#F7D56D" },
+  title: { fontSize: 17, fontWeight: "800", color: "#fff" },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  item: { width: "30%", alignItems: "center", gap: 8, paddingVertical: 8 },
+  icon: { width: 50, height: 50, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  label: { fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.7)" },
+  posRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 14, borderBottomWidth: 0.5, borderColor: "rgba(255,255,255,0.06)" },
+  posSym: { fontSize: 15, fontWeight: "700", color: "#fff" },
 });
 
-// Card messages (signal / onchain)
+// Generic message
+const ms = StyleSheet.create({
+  row: { flexDirection: "row", gap: 8, marginBottom: 14 },
+  av: { width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(192,99,255,0.2)", alignItems: "center", justifyContent: "center", marginTop: 2 },
+  avT: { fontSize: 12, fontWeight: "700", color: "#C063FF" },
+  bb: { backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 16, padding: 10, maxWidth: "78%" },
+  me: { backgroundColor: "#C063FF", borderRadius: 16, padding: 10, maxWidth: "78%" },
+  un: { fontSize: 11, fontWeight: "700", color: "#C063FF", marginBottom: 2 },
+  tx: { fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 20 },
+  meT: { fontSize: 14, color: "#fff", lineHeight: 20 },
+  tm: { fontSize: 9, color: "rgba(255,255,255,0.2)", marginTop: 4, textAlign: "right" },
+});
+
+// Signal / onchain card
 const cs = StyleSheet.create({
   card: { backgroundColor: "rgba(35,10,62,0.6)", borderRadius: 20, borderWidth: 0.5, borderColor: "rgba(192,99,255,0.2)", padding: 16, marginBottom: 14 },
   head: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
-  avatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(192,132,252,0.15)", alignItems: "center", justifyContent: "center" },
-  avatarT: { fontSize: 14, fontWeight: "800", color: "#C084FC" },
-  user: { fontSize: 14, fontWeight: "700", color: "#fff" },
-  liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#34D399" },
-  liveText: { fontSize: 10, color: "#34D399", fontWeight: "600" },
-  label: { fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 1 },
-  time: { fontSize: 10, color: "rgba(255,255,255,0.25)" },
-  body: { marginBottom: 12 },
-  symbol: { fontSize: 18, fontWeight: "800", color: "#fff" },
-  dirBadge: { backgroundColor: "rgba(52,211,153,0.1)", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  dirText: { fontSize: 12, fontWeight: "700", color: "#34D399" },
+  av: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(192,132,252,0.15)", alignItems: "center", justifyContent: "center" },
+  avT: { fontSize: 14, fontWeight: "800", color: "#C084FC" },
+  un: { fontSize: 14, fontWeight: "700", color: "#fff" },
+  live: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#34D399" },
+  liveT: { fontSize: 10, color: "#34D399", fontWeight: "600" },
+  tm: { fontSize: 10, color: "rgba(255,255,255,0.25)" },
+  bd: { marginBottom: 12 },
+  sym: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  dir: { backgroundColor: "rgba(52,211,153,0.1)", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  dirT: { fontSize: 12, fontWeight: "700", color: "#34D399" },
   metrics: { flexDirection: "row", justifyContent: "space-between", backgroundColor: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 12 },
-  tokenName: { fontSize: 18, fontWeight: "800", color: "#fff" },
-  tokenAction: { fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 2 },
-  tokenAmt: { fontSize: 18, fontWeight: "800", color: "#A78BFA" },
-  followBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#F7D56D", borderRadius: 14, paddingVertical: 12 },
-  followText: { fontSize: 14, fontWeight: "700", color: "#090012" },
-  disclaimer: { fontSize: 10, color: "rgba(255,255,255,0.2)", textAlign: "center", marginTop: 8 },
+  btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#F7D56D", borderRadius: 14, paddingVertical: 12 },
+  btnT: { fontSize: 14, fontWeight: "700", color: "#090012" },
+  disc: { fontSize: 10, color: "rgba(255,255,255,0.2)", textAlign: "center", marginTop: 8 },
 });
 
 // Position card
 const ps = StyleSheet.create({
-  card: { backgroundColor: "rgba(35,10,62,0.5)", borderRadius: 16, borderWidth: 1, borderColor: "rgba(192,99,255,0.15)", padding: 12, maxWidth: "78%" },
-  symbol: { fontSize: 14, fontWeight: "700", color: "#fff" },
-  side: { fontSize: 11, fontWeight: "700" },
-  user: { fontSize: 11, color: "rgba(255,255,255,0.4)" },
-  pnl: { fontSize: 13, fontWeight: "700" },
-});
-
-// Position picker modal
-const pl = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#150530", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, maxHeight: "50%" },
-  sheetHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
-  sheetTitle: { fontSize: 17, fontWeight: "800", color: "#fff" },
-  posItem: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 14, borderBottomWidth: 0.5, borderColor: "rgba(255,255,255,0.06)" },
-  posLeft: {},
-  posSymbol: { fontSize: 15, fontWeight: "700", color: "#fff" },
-  posSide: { fontSize: 12, fontWeight: "600", marginTop: 2 },
-  posRight: { alignItems: "flex-end" },
-  posPnl: { fontSize: 15, fontWeight: "700" },
-  posPnlPct: { fontSize: 11, fontWeight: "600", marginTop: 2 },
-  empty: { fontSize: 13, color: "rgba(255,255,255,0.3)", textAlign: "center", paddingVertical: 30 },
+  c: { backgroundColor: "rgba(35,10,62,0.5)", borderRadius: 16, borderWidth: 1, borderColor: "rgba(192,99,255,0.15)", padding: 12, maxWidth: "78%" },
+  s: { fontSize: 14, fontWeight: "700", color: "#fff" },
 });
