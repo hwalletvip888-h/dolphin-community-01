@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "polymarket-plugin": {
+      "source": "okx/plugin-store",
+      "sourceType": "github",
+      "skillPath": "skills/polymarket-plugin/SKILL.md",
+      "computedHash": "eabf15fd1f442adbae87598b432b85d710bd38ff0e2931f7e1dcf9d1bc123f4d"
+    }
+  }
+}
