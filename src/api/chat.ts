@@ -23,3 +23,7 @@ export function fetchSignals() {
 export function fetchFutures() {
   return get("/api/futures");
 }
+
+export function executeTrade(params: { instId: string; posSide: string; lever: string; sz: string }) {
+  return post("/api/trade", { action: "swap", ...params });
+}
