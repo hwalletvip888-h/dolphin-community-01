@@ -131,14 +131,15 @@ export default function HomeScreen() {
         <TouchableOpacity onPress={() => router.push("/signals")}><Text style={s.moreLink}>更多 →</Text></TouchableOpacity>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.cardRow}>
-        {(xlayerTxs.length > 0 ? xlayerTxs : [{ hash: "—", from: "0x0000", to: "0x0000", value: "0", timestamp: "" }]).slice(0, 5).map((tx, i) => {
+        {(xlayerTxs.length > 0 ? xlayerTxs : []).slice(0, 5).map((tx, i) => {
           const val = parseFloat(tx.value || "0");
-          const valStr = val > 1000000 ? `$${(val/1e6).toFixed(1)}M` : val > 1000 ? `$${(val/1e3).toFixed(1)}K` : `$${val.toFixed(0)}`;
+          const sym = tx.symbol || "OKB";
+          const valStr = val > 1e9 ? `${(val/1e9).toFixed(1)}B` : val > 1e6 ? `${(val/1e6).toFixed(1)}M` : val > 1000 ? `${(val/1e3).toFixed(1)}K` : val.toFixed(2);
           const addr = (tx.from || "").slice(0, 6) + "..." + (tx.from || "").slice(-4);
           return (
           <TouchableOpacity key={i} style={s.whaleCard} onPress={() => router.push(`/chat/onchain?msg=${encodeURIComponent("帮我分析这笔大额交易: " + tx.hash)}`)} activeOpacity={0.85}>
             <View style={s.whaleValue}>
-              <Text style={s.whaleValueT}>{valStr}</Text>
+              <Text style={s.whaleValueT}>{valStr} {sym}</Text>
             </View>
             <Text style={s.whaleAddr}>{addr}</Text>
             <View style={[s.whaleBadge, { backgroundColor: "rgba(167,139,250,0.1)" }]}>

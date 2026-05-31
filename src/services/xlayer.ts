@@ -28,7 +28,16 @@ export async function fetchLargeTransactions(limit = 20): Promise<LargeTx[]> {
   try {
     const r = await fetch(`${PROXY}/large-txs?limit=${limit}`, { signal: AbortSignal.timeout(10000) });
     const d = await r.json();
-    return d?.data || [];
+    const page = d?.data?.[0];
+    const txs = page?.transactionList || [];
+    return txs.map((t: any) => ({
+      hash: t.txid || "",
+      from: t.input || "",
+      to: t.output || "",
+      value: t.amount || "0",
+      timestamp: t.transactionTime || "",
+      symbol: t.transactionSymbol || undefined,
+    }));
   } catch {
     return [];
   }
