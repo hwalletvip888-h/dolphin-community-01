@@ -49,16 +49,25 @@ const ti = StyleSheet.create({
 // ═══════════════ Main ═══════════════
 
 export default function ChatScreen() {
-  const { agentId } = useLocalSearchParams<{ agentId: string }>();
+  const { agentId, msg } = useLocalSearchParams<{ agentId: string; msg?: string }>();
   const router = useRouter();
   const agent = AGENTS.find((a) => a.id === agentId) || AGENTS[0];
   const { messages, isTyping, send, clear, cancel } = useChat();
-  const { add: bookmarkAdd, remove: bookmarkRemove, isBookmarked } = useBookmarks();
   const [input, setInput] = useState("");
   const listRef = useRef<FlatList<Message>>(null);
+  const autoSent = useRef(false);
   const isEmpty = messages.length === 0;
 
   useEffect(() => { clear(); }, [agentId]);
+
+  // Auto-send message from home page signal tap
+  useEffect(() => {
+    if (msg && !autoSent.current) {
+      autoSent.current = true;
+      const decoded = decodeURIComponent(msg as string);
+      setTimeout(() => send(decoded, agentId), 300);
+    }
+  }, [msg]);
 
   const scrollToBottom = useCallback(() => {
     if (messages.length === 0) return;

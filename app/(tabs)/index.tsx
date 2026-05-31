@@ -62,7 +62,7 @@ export default function HomeScreen() {
         {AGENTS.map((a) => {
           const ok = level >= a.unlockLevel;
           return (
-            <TouchableOpacity key={a.id} style={[s.agentCard, { borderColor: ok ? a.color + "30" : "rgba(255,255,255,0.06)" }]} onPress={() => ok && router.push(`/chat/${a.id}`)} activeOpacity={ok ? 0.7 : 1}>
+            <TouchableOpacity key={a.id} style={[s.agentCard, { borderColor: ok ? a.color + "30" : "rgba(255,255,255,0.06)" }]} onPress={() => ok && router.push(`/chat/${a.id}?msg=${encodeURIComponent("你好")}`)} activeOpacity={ok ? 0.7 : 1}>
               <View style={[s.agentAv, { borderColor: ok ? a.color : "rgba(255,255,255,0.15)" }, !ok && { opacity: 0.4 }]}>
                 <Text style={[s.agentAvT, { color: ok ? a.color : "rgba(255,255,255,0.3)" }]}>{a.name[0]}</Text>
               </View>
@@ -83,12 +83,12 @@ export default function HomeScreen() {
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.cardRow}>
         {[
-          { token: "PEPE", chain: "ETH", pnl: "+82%", price: "$0.00215", signal: "🐋 鲸鱼买入", bg: "rgba(167,139,250,0.08)", border: "rgba(167,139,250,0.2)" },
-          { token: "WIF", chain: "SOL", pnl: "+22%", price: "$2.98", signal: "🧠 聪明钱建仓", bg: "rgba(52,211,153,0.08)", border: "rgba(52,211,153,0.2)" },
-          { token: "DEGEN", chain: "BASE", pnl: "-27%", price: "$0.038", signal: "📊 大额转账", bg: "rgba(251,146,60,0.08)", border: "rgba(251,146,60,0.2)" },
-          { token: "BONK", chain: "SOL", pnl: "+15%", price: "$0.00003", signal: "🆕 新钱包创建", bg: "rgba(192,99,255,0.08)", border: "rgba(192,99,255,0.2)" },
+          { token: "PEPE", chain: "ETH", pnl: "+82%", price: "$0.00215", signal: "🐋 鲸鱼买入", msg: "帮我分析 PEPE 这个鲸鱼买入信号", bg: "rgba(167,139,250,0.08)", border: "rgba(167,139,250,0.2)" },
+          { token: "WIF", chain: "SOL", pnl: "+22%", price: "$2.98", signal: "🧠 聪明钱建仓", msg: "WIF 聪明钱建仓了，帮我看看能不能跟", bg: "rgba(52,211,153,0.08)", border: "rgba(52,211,153,0.2)" },
+          { token: "DEGEN", chain: "BASE", pnl: "-27%", price: "$0.038", signal: "📊 大额转账", msg: "DEGEN 有大额转账，帮我分析一下", bg: "rgba(251,146,60,0.08)", border: "rgba(251,146,60,0.2)" },
+          { token: "BONK", chain: "SOL", pnl: "+15%", price: "$0.00003", signal: "🆕 新钱包创建", msg: "BONK 有新钱包创建，帮我看看什么情况", bg: "rgba(192,99,255,0.08)", border: "rgba(192,99,255,0.2)" },
         ].map((c, i) => (
-          <TouchableOpacity key={i} style={[s.earnCard, { backgroundColor: c.bg, borderColor: c.border }]} onPress={() => router.push("/chat/onchain")} activeOpacity={0.8}>
+          <TouchableOpacity key={i} style={[s.earnCard, { backgroundColor: c.bg, borderColor: c.border }]} onPress={() => router.push(`/chat/onchain?msg=${encodeURIComponent(c.msg)}`)} activeOpacity={0.8}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
               <Text style={s.earnToken}>{c.token}</Text>
               <Text style={s.earnChain}>{c.chain}</Text>
@@ -109,11 +109,11 @@ export default function HomeScreen() {
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.cardRow}>
         {[
-          { pair: "BTC/USDT", dir: "多", lev: "10x", entry: "87,200", tp: "89,500", sl: "85,800", rr: "2.4", pnl: "+2.9%", bg: "rgba(52,211,153,0.06)", border: "rgba(52,211,153,0.15)" },
-          { pair: "ETH/USDT", dir: "空", lev: "5x", entry: "4,150", tp: "3,900", sl: "4,300", rr: "1.8", pnl: "+3.6%", bg: "rgba(251,146,60,0.06)", border: "rgba(251,146,60,0.15)" },
-          { pair: "SOL/USDT", dir: "多", lev: "3x", entry: "178.5", tp: "195", sl: "172", rr: "2.1", pnl: "+10.1%", bg: "rgba(52,211,153,0.06)", border: "rgba(52,211,153,0.15)" },
+          { pair: "BTC/USDT", dir: "多", lev: "10x", entry: "87,200", tp: "89,500", sl: "85,800", rr: "2.4", pnl: "+2.9%", msg: "帮我跟单 BTC 做多 入场87200 目标89500 止损85800", bg: "rgba(52,211,153,0.06)", border: "rgba(52,211,153,0.15)" },
+          { pair: "ETH/USDT", dir: "空", lev: "5x", entry: "4,150", tp: "3,900", sl: "4,300", rr: "1.8", pnl: "+3.6%", msg: "帮我跟单 ETH 做空 入场4150 目标3900 止损4300", bg: "rgba(251,146,60,0.06)", border: "rgba(251,146,60,0.15)" },
+          { pair: "SOL/USDT", dir: "多", lev: "3x", entry: "178.5", tp: "195", sl: "172", rr: "2.1", pnl: "+10.1%", msg: "帮我跟单 SOL 做多 入场178.5 目标195 止损172", bg: "rgba(52,211,153,0.06)", border: "rgba(52,211,153,0.15)" },
         ].map((c, i) => (
-          <TouchableOpacity key={i} style={[s.sigCard, { backgroundColor: c.bg, borderColor: c.border }]} onPress={() => router.push("/chat/zhuge")} activeOpacity={0.8}>
+          <TouchableOpacity key={i} style={[s.sigCard, { backgroundColor: c.bg, borderColor: c.border }]} onPress={() => router.push(`/chat/zhuge?msg=${encodeURIComponent(c.msg)}`)} activeOpacity={0.8}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
               <Text style={s.sigPair}>{c.pair}</Text>
               <Text style={[s.sigDir, { color: c.dir === "多" ? "#34D399" : "#FB923C" }]}>{c.dir} {c.lev}</Text>
