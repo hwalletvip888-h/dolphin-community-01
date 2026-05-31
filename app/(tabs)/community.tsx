@@ -110,7 +110,7 @@ export default function CommunityScreen() {
         <TouchableOpacity style={s.plus} onPress={() => { setMenuPage("main"); setShowMenu(true); }}><Plus size={22} color="rgba(255,255,255,0.4)" /></TouchableOpacity>
         <TextInput value={input} onChangeText={setInput} placeholder="和大家聊聊..." placeholderTextColor="rgba(255,255,255,0.2)" multiline maxLength={500} style={s.inp} onSubmitEditing={handleSend} returnKeyType="send" blurOnSubmit={false} />
         <TouchableOpacity onPress={handleSend} disabled={!input.trim()} style={[s.send, input.trim() ? s.sendOn : s.sendOff]}><Send size={17} color={input.trim() ? "#0D001A" : "rgba(255,255,255,0.25)"} /></TouchableOpacity>
-      </View>
+      </View>}
 
       {/* + Menu Modal */}
       <Modal visible={showMenu} transparent animationType="slide" onRequestClose={() => setShowMenu(false)}>
