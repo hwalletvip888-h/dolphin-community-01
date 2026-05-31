@@ -20,7 +20,7 @@ export default function HomeScreen() {
     <ScrollView style={s.root} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
       {/* Top bar: profile + search */}
       <View style={s.topBar}>
-        <TouchableOpacity style={s.profileBtn} onPress={() => router.push("/profile")}>
+        <TouchableOpacity style={s.profileBtn} onPress={() => router.push("/settings")}>
           <User size={20} color="#fff" />
         </TouchableOpacity>
         <View style={s.searchBox}>
