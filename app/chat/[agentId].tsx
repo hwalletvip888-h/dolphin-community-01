@@ -48,9 +48,16 @@ export default function ChatScreen() {
   const maxLoss = Math.round(positionSize * 0.03); // -3% SL
   const listRef = useRef<FlatList<Message>>(null);
   const autoSent = useRef(false);
+  const prevAgent = useRef("");
   const isEmpty = messages.length === 0;
 
-  useEffect(() => { clear(); }, [agentId]);
+  // 只在切换 Agent 时清空对话，回退再进入保留历史
+  useEffect(() => {
+    if (prevAgent.current && prevAgent.current !== agentId) {
+      clear();
+    }
+    prevAgent.current = agentId;
+  }, [agentId]);
 
   // Auto-send message from home page signal tap
   useEffect(() => {
