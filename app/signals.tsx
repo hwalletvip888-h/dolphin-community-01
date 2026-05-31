@@ -6,6 +6,7 @@ import { ChevronLeft, TrendingUp, TrendingDown, Globe } from "lucide-react-nativ
 interface SignalItem {
   symbol: string; name: string; chain: string;
   price: string; changePct: string; volume24h: string; marketCap: string;
+  securityScore?: number;
 }
 
 export default function SignalsScreen() {
@@ -19,14 +20,14 @@ export default function SignalsScreen() {
   const fetchTokens = async () => {
     setLoading(true);
     try {
-      const r = await fetch(`http://154.12.55.135:3000/api/h/v1/meme/scan?chain=${chain}&limit=30`, { signal: AbortSignal.timeout(10000) });
+      const r = await fetch("https://api.hvip.ink/api/signals", { signal: AbortSignal.timeout(10000) });
       const d = await r.json();
-      const raw = d?.data || d?.tokens || d?.results || [];
+      const raw = d?.signals || [];
       if (Array.isArray(raw)) {
         setTokens(raw.map((t: any) => ({
-          symbol: t.symbol || "?", name: t.name || "", chain: t.chain || chain,
-          price: t.price || "—", changePct: t.change || t.change24h || "0",
-          volume24h: t.volume24h || t.volume || "0", marketCap: t.marketCap || t.mc || "0",
+          symbol: t.symbol || "?", name: t.name || "", chain: t.chainIndex || chain,
+          price: t.price || "—", changePct: "0", volume24h: t.volume1h || "0",
+          marketCap: t.marketCap || "0", securityScore: t.securityScore,
         })));
       }
     } catch {}

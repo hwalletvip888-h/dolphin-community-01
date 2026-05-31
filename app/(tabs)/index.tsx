@@ -15,10 +15,14 @@ const ADDRESSES = [
 export default function HomeScreen() {
   const router = useRouter();
   const { total, level, refreshWallet, loggedIn } = useAuth();
-  const { tickers, candles, memeTokens, start: startWS, loadCandles, loadMemeTokens } = useMarket();
+  const { tickers, candles, start: startWS, loadCandles } = useMarket();
   const [showDeposit, setShowDeposit] = useState(false);
+  const [signals, setSignals] = useState<any[]>([]);
   useEffect(() => { if (loggedIn) refreshWallet(); }, [loggedIn]);
-  useEffect(() => { startWS(); loadCandles(); loadMemeTokens(); }, []);
+  useEffect(() => { startWS(); loadCandles(); fetchSignals(); }, []);
+  const fetchSignals = async () => {
+    try { const d = await (await fetch("https://api.hvip.ink/api/signals", { signal: AbortSignal.timeout(8000) })).json(); setSignals(d.signals || []); } catch {}
+  };
 
   const mkLabels: Record<string, string> = { "BTC-USDT-SWAP": "BTC", "ETH-USDT-SWAP": "ETH", "SOL-USDT-SWAP": "SOL" };
 
@@ -116,27 +120,26 @@ export default function HomeScreen() {
         })}
       </ScrollView>
 
-      {/* 链上飙升 — OnchainOS memepump 真实数据 */}
+      {/* 链上信号 — OKX Market API 真实数据 */}
       <View style={s.sectionHead}>
-        <Text style={s.sectionTitle}>链上飙升</Text>
+        <Text style={s.sectionTitle}>链上信号</Text>
         <TouchableOpacity onPress={() => router.push("/signals")}><Text style={s.moreLink}>更多 →</Text></TouchableOpacity>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.cardRow}>
-        {(memeTokens.length > 0 ? memeTokens : [
-          { symbol: "PEPE", name: "Pepe", chain: "Solana", price: "—", changePct: "0", volume24h: "—", marketCap: "—" },
-          { symbol: "WIF", name: "DogWifHat", chain: "Solana", price: "—", changePct: "0", volume24h: "—", marketCap: "—" },
-          { symbol: "BONK", name: "Bonk", chain: "Solana", price: "—", changePct: "0", volume24h: "—", marketCap: "—" },
-        ]).slice(0, 8).map((c, i) => {
-          const chg = parseFloat(c.changePct || "0");
-          const isUp = chg >= 0;
-          const priceStr = c.price !== "—" ? (parseFloat(c.price) < 0.01 ? `$${parseFloat(c.price).toFixed(8)}` : `$${parseFloat(c.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`) : "—";
+        {(signals.length > 0 ? signals : [{ symbol: "—", name: "", price: "—", securityScore: 0, volume1h: "0", marketCap: "0" }]).slice(0, 8).map((c, i) => {
+          const score = c.securityScore || 0;
+          const scoreColor = score >= 80 ? "#34D399" : score >= 50 ? "#F7D56D" : "#FB923C";
+          const price = parseFloat(c.price);
+          const priceStr = isNaN(price) ? "—" : price < 0.01 ? `$${price.toFixed(6)}` : `$${price.toFixed(2)}`;
           return (
-          <TouchableOpacity key={i} style={s.pickCard} onPress={() => router.push(`/chat/onchain?msg=${encodeURIComponent("帮我分析 OnchainOS 飙升榜上的 " + c.symbol)}`)} activeOpacity={0.85}>
-            <View style={s.pickBadge}><Text style={s.pickBadgeT}>{c.symbol[0]}</Text></View>
+          <TouchableOpacity key={i} style={s.pickCard} onPress={() => router.push(`/chat/onchain?msg=${encodeURIComponent("帮我分析链上信号: " + c.symbol)}`)} activeOpacity={0.85}>
+            <View style={s.pickBadge}><Text style={s.pickBadgeT}>{c.symbol?.[0] || "?"}</Text></View>
             <Text style={s.pickSym}>{c.symbol}</Text>
             <Text style={s.pickPrice}>{priceStr}</Text>
-            <Text style={[s.pickChg, { color: isUp ? "#34D399" : "#FB923C" }]}>{isUp ? "+" : ""}{chg.toFixed(1)}%</Text>
-            <View style={s.pickReason}><Text style={s.pickReasonT}>{c.chain}</Text></View>
+            <View style={[s.scoreBadge, { backgroundColor: scoreColor + "18" }]}>
+              <Text style={[s.scoreText, { color: scoreColor }]}>{Math.round(score)}分</Text>
+            </View>
+            <View style={s.pickReason}><Text style={s.pickReasonT}>安全评分</Text></View>
           </TouchableOpacity>
         );
         })}
@@ -270,6 +273,8 @@ const s = StyleSheet.create({
   pickChg: { fontSize: 15, fontWeight: "800" },
   pickReason: { backgroundColor: "rgba(167,139,250,0.08)", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   pickReasonT: { fontSize: 10, color: "#A78BFA", fontWeight: "600" },
+  scoreBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  scoreText: { fontSize: 11, fontWeight: "700" },
   // 合约信号 cards
   sigCard: { width: 240, backgroundColor: "rgba(35,10,62,0.6)", borderRadius: 20, borderWidth: 0.5, borderColor: "rgba(192,99,255,0.15)", padding: 18 },
   coinBadge: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
